@@ -1,16 +1,24 @@
 <?php
 require_once 'config.php';
 
-// Manejar acciones AJAX (guardar cambios)
+// --- PHP: Manejar la lógica de guardado (POST) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
 
     $productId = $_POST['product_id'] ?? 0;
     $name = $_POST['name'] ?? '';
     $description = $_POST['description'] ?? '';
-    $price = $_POST['price'] ?? 0;
-    $currency = $_POST['currency'] ?? 'USD';
+    // ATENCIÓN: Ahora recibimos 'price_raw' del campo oculto JS
+    $priceRaw = $_POST['price_raw'] ?? '0'; // Obtener el valor numérico limpio
+    $currency = $_POST['currency'] ?? 'CLP'; // Asegúrate de que CLP sea el default si es tu moneda principal
     $url = $_POST['url'] ?? '';
+
+    // --- LIMPIEZA Y VALIDACIÓN DEL PRECIO EN PHP ---
+    // Elimina cualquier caracter no numérico (para seguridad, aunque JS ya lo hace)
+    $cleanPrice = preg_replace('/[^0-9]/', '', $priceRaw);
+    // Convierte a entero. Si tu DB permite decimales, usa floatval().
+    // Aquí asumimos enteros para CLP.
+    $price = intval($cleanPrice);
 
     // Validaciones
     if ($productId <= 0) {
@@ -21,16 +29,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['success' => false, 'message' => 'El nombre del producto es requerido.']);
         exit;
     }
+    // La validación del precio ahora usa la variable $price limpia
     if (!is_numeric($price) || $price < 0) {
         echo json_encode(['success' => false, 'message' => 'El precio debe ser un número positivo.']);
         exit;
     }
-    if (!filter_var($url, FILTER_VALIDATE_URL) && !empty($url)) {
+    // Validar URL solo si no está vacía
+    if (!empty($url) && !filter_var($url, FILTER_VALIDATE_URL)) {
         echo json_encode(['success' => false, 'message' => 'La URL del producto no es válida.']);
         exit;
     }
 
-    $pdo = getDBConnection();
+    $pdo = getDBConnection(); // Asegúrate de que esta función está definida en config.php
+
     $stmt = $pdo->prepare("UPDATE list_products SET name = ?, description = ?, price = ?, currency = ?, product_url = ?, updated_at = NOW() WHERE id = ?");
 
     if ($stmt->execute([$name, $description, $price, $currency, $url, $productId])) {
@@ -41,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// Obtener el ID del producto de la URL
+// --- PHP: Obtener datos del producto para mostrar en el formulario (GET) ---
 $productId = $_GET['id'] ?? 0;
 
 if ($productId > 0) {
@@ -51,12 +62,10 @@ if ($productId > 0) {
     $product = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$product) {
-        // Redirigir o mostrar un mensaje si el producto no existe
         header('Location: index.php?message=Producto+no+encontrado');
         exit;
     }
 } else {
-    // Redirigir o mostrar un mensaje si no se proporciona un ID
     header('Location: index.php?message=ID+de+producto+no+proporcionado');
     exit;
 }
@@ -69,6 +78,7 @@ if ($productId > 0) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editar Producto - Gestor de Precios</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         /* Estilos CSS idénticos a los de tu página principal para mantener la consistencia */
         * {
@@ -244,8 +254,19 @@ if ($productId > 0) {
                             <input type="text" id="name" name="name" value="<?php echo htmlspecialchars($product['name']); ?>" required>
                         </div>
                         <div class="form-group">
-                            <label for="price">Precio</label>
-                            <input type="number" id="price" name="price" step="0.01" min="0" value="<?php echo htmlspecialchars($product['price']); ?>">
+                            <label for="price_formatted">Precio</label>
+                            <input type="text" id="price_formatted"
+                                class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-300 placeholder-gray-400"
+                                placeholder="$0" inputmode="numeric" autocomplete="off"
+                                value="<?php
+                                        // Formatear el precio al cargar la página si es CLP
+                                        if ($product['currency'] === 'CLP') {
+                                            echo number_format($product['price'], 0, ',', '.');
+                                        } else {
+                                            echo htmlspecialchars($product['price']);
+                                        }
+                                        ?>">
+                            <input type="hidden" name="price_raw" id="price_raw" value="<?php echo htmlspecialchars($product['price']); ?>">
                         </div>
                     </div>
                     <div class="form-row">
@@ -273,6 +294,8 @@ if ($productId > 0) {
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js"></script>
+
     <script>
         function showAlert(message, type = 'success') {
             const alertContainer = document.getElementById('alert-container');
@@ -283,58 +306,141 @@ if ($productId > 0) {
             }, 5000);
         }
 
-        document.getElementById('edit-product-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const formData = new FormData(this);
-
-            // Validaciones en el cliente
-            const productName = document.getElementById('name').value.trim();
-            const productPrice = parseFloat(document.getElementById('price').value);
-            const productUrl = document.getElementById('url').value.trim();
-
-            if (productName === '') {
-                showAlert('El nombre del producto es requerido.', 'error');
-                return;
-            }
-            if (isNaN(productPrice) || productPrice < 0) {
-                showAlert('El precio debe ser un número positivo.', 'error');
-                return;
-            }
-            if (productUrl !== '' && !isValidUrl(productUrl)) {
-                showAlert('La URL del producto no es válida. Asegúrate de incluir http:// o https://', 'error');
-                return;
-            }
-
-            fetch('', { // La misma página maneja el POST
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showAlert(data.message, 'success');
-                        // Opcional: recargar la página o redirigir después de un éxito
-                        setTimeout(() => window.location.href = 'index.php', 1500);
-                    } else {
-                        showAlert(data.message, 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showAlert('Error al procesar la solicitud.', 'error');
-                });
-        });
-
-        // Función de validación de URL simple
-        function isValidUrl(string) {
-            try {
-                new URL(string);
-                return true;
-            } catch (e) {
-                return false;
-            }
+        // --- FUNCIONES DE FORMATO DE PRECIO EN JAVASCRIPT ---
+        // Función para limpiar el valor de formato y obtener solo los dígitos
+        function cleanNumber(formattedValue) {
+            return formattedValue.replace(/[^0-9]/g, ''); // Elimina todo lo que no sea dígito
         }
+
+        // Función para formatear el número como CLP
+        function formatCurrencyCLP(value) {
+            let cleanValue = value.replace(/[^0-9]/g, '');
+            let numberValue = parseInt(cleanValue, 10);
+            if (isNaN(numberValue) || cleanValue === '') {
+                return '';
+            }
+            return new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                useGrouping: true,
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(numberValue);
+        }
+        // --- FIN FUNCIONES DE FORMATO DE PRECIO ---
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const priceFormattedInput = document.getElementById('price_formatted'); // Tu input visible
+            const priceRawInput = document.getElementById('price_raw'); // Tu input oculto para la BD
+            const currencySelect = document.getElementById('currency'); // Tu select de moneda
+            const form = document.getElementById('edit-product-form');
+
+            // --- Lógica de formato en tiempo real para el campo de precio ---
+            // Solo aplica el formato si la moneda seleccionada es CLP
+            const applyFormat = () => {
+                if (currencySelect.value === 'CLP') {
+                    // Si el campo visible ya tiene un valor (ej. cargado de la BD)
+                    if (priceFormattedInput.value) {
+                        priceFormattedInput.value = formatCurrencyCLP(priceFormattedInput.value);
+                    }
+                } else {
+                    // Si la moneda no es CLP, quitar cualquier formato de CLP
+                    // y mostrar el valor numérico limpio.
+                    priceFormattedInput.value = cleanNumber(priceFormattedInput.value);
+                }
+            };
+
+            // Listener para el input de precio
+            priceFormattedInput.addEventListener('input', function(e) {
+                if (currencySelect.value === 'CLP') {
+                    const originalLength = e.target.value.length;
+                    const cursorPosition = e.target.selectionStart;
+
+                    let formattedValue = formatCurrencyCLP(e.target.value);
+                    e.target.value = formattedValue;
+
+                    const newLength = e.target.value.length;
+                    const diff = newLength - originalLength;
+                    if (cursorPosition + diff >= 0) {
+                        e.target.setSelectionRange(cursorPosition + diff, cursorPosition + diff);
+                    }
+                }
+                // ¡IMPORTANTE! Siempre actualizar el campo oculto con el valor limpio
+                priceRawInput.value = cleanNumber(priceFormattedInput.value);
+            });
+
+            // Listener para el cambio de moneda
+            currencySelect.addEventListener('change', function() {
+                applyFormat(); // Re-aplicar o quitar formato cuando cambia la moneda
+                // También actualiza el campo oculto inmediatamente después de cambiar moneda
+                priceRawInput.value = cleanNumber(priceFormattedInput.value);
+            });
+
+            // Aplicar formato inicial al cargar la página si la moneda es CLP
+            applyFormat();
+            // Asegurarse de que el campo oculto tenga el valor correcto al cargar
+            priceRawInput.value = cleanNumber(priceFormattedInput.value);
+
+
+            // --- Lógica de envío de formulario (AJAX) ---
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                // Antes de enviar, asegúrate de que el campo oculto tenga el valor limpio final
+                priceRawInput.value = cleanNumber(priceFormattedInput.value);
+
+                const formData = new FormData(this);
+
+                // Validaciones en el cliente (usando el valor limpio del input oculto o el visible)
+                const productName = document.getElementById('name').value.trim();
+                const productPriceForValidation = parseInt(priceRawInput.value, 10); // Usa el valor limpio del hidden input
+                const productUrl = document.getElementById('url').value.trim();
+
+                if (productName === '') {
+                    showAlert('El nombre del producto es requerido.', 'error');
+                    return;
+                }
+                // Ajusta la validación para usar el entero limpio
+                if (isNaN(productPriceForValidation) || productPriceForValidation < 0) {
+                    showAlert('El precio debe ser un número positivo.', 'error');
+                    return;
+                }
+                if (productUrl !== '' && !isValidUrl(productUrl)) {
+                    showAlert('La URL del producto no es válida. Asegúrate de incluir http:// o https://', 'error');
+                    return;
+                }
+
+                fetch('', { // La misma página maneja el POST
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showAlert(data.message, 'success');
+                            // Opcional: recargar la página o redirigir después de un éxito
+                            setTimeout(() => window.location.href = 'index.php', 1500);
+                        } else {
+                            showAlert(data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showAlert('Error al procesar la solicitud.', 'error');
+                    });
+            });
+
+            // Función de validación de URL simple
+            function isValidUrl(string) {
+                try {
+                    new URL(string);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+        });
     </script>
 </body>
 
