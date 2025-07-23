@@ -42,9 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $pdo = getDBConnection(); // Asegúrate de que esta función está definida en config.php
 
-    $stmt = $pdo->prepare("UPDATE list_products SET name = ?, description = ?, price = ?, currency = ?, product_url = ?, updated_at = NOW() WHERE id = ?");
+    $stmt = $pdo->prepare("UPDATE list_products SET name = ?, description = ?, price = ?, currency = ?, product_url = ?, updated_at = ? WHERE id = ?");
 
-    if ($stmt->execute([$name, $description, $price, $currency, $url, $productId])) {
+    if ($stmt->execute([$name, $description, $price, $currency, $url, $fechaHoraActual, $productId])) {
         echo json_encode(['success' => true, 'message' => 'Producto actualizado correctamente.']);
     } else {
         echo json_encode(['success' => false, 'message' => 'Error al actualizar el producto.']);

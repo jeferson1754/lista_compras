@@ -27,8 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!empty($name)) {
                 $pdo = getDBConnection();
-                $stmt = $pdo->prepare("INSERT INTO list_products (name, description, price, currency, product_url) VALUES (?, ?, ?, ?, ?)");
-                if ($stmt->execute([$name, $description, $price, $currency, $url])) {
+                $stmt = $pdo->prepare("INSERT INTO list_products (name, description, price, currency, product_url, created_at) VALUES (?, ?, ?, ?, ?, ?)");
+                if ($stmt->execute([$name, $description, $price, $currency, $url, $fechaHoraActual])) {
                     echo json_encode(['success' => true, 'message' => 'Producto agregado correctamente']);
                 } else {
                     echo json_encode(['success' => false, 'message' => 'Error al agregar producto']);

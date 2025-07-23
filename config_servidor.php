@@ -20,4 +20,6 @@ function getDBConnection()
     }
 }
 
+date_default_timezone_set('America/Santiago');
 
+$fechaHoraActual = date('Y-m-d H:i:s');
