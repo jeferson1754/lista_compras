@@ -56,6 +56,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo json_encode(['success' => false, 'message' => 'ID de producto inválido']);
             }
             exit;
+        case 'mark_purchased':
+            $productId = $_POST['product_id'] ?? 0;
+            $purchasedPrice = $_POST['purchased_price'] ?? 0; // Podría ser el precio actual o el que el usuario ingresa
+            $purchasedCurrency = $_POST['purchased_currency'] ?? 'CLP';
+
+            if ($productId <= 0) {
+                echo json_encode(['success' => false, 'message' => 'ID de producto inválido.']);
+                exit;
+            }
+
+            $pdo = getDBConnection();
+
+            // 1. Obtener los datos del producto antes de moverlo
+            $stmt = $pdo->prepare("SELECT * FROM list_products WHERE id = ?");
+            $stmt->execute([$productId]);
+            $product = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$product) {
+                echo json_encode(['success' => false, 'message' => 'Producto no encontrado.']);
+                exit;
+            }
+
+            // Limpieza del precio (repetir la misma lógica que ya tienes)
+            $cleanPurchasedPrice = preg_replace('/[^0-9.]/', '', $purchasedPrice); // Permite decimales si los usas
+            $finalPurchasedPrice = floatval($cleanPurchasedPrice);
+
+            // 2. Insertar en purchase_history
+            $stmt = $pdo->prepare("INSERT INTO purchase_history (
+            product_id, name, description, purchased_price, purchased_currency, product_url,
+            necessity_level, purchase_reason, purchased_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())"); // NOW() para la fecha de compra
+
+            try {
+                $pdo->beginTransaction(); // Iniciar transacción para asegurar atomicidad
+
+                $stmt->execute([
+                    $product['id'],
+                    $product['name'],
+                    $product['description'],
+                    $finalPurchasedPrice, // Usar el precio de compra final
+                    $purchasedCurrency,
+                    $product['product_url'],
+                    $product['necessity_level'],
+                    $product['purchase_reason'] ?? NULL // Puede que purchase_reason aún no exista en todos los productos
+                ]);
+
+                // 3. Marcar el producto original como comprado en list_products
+                $stmtUpdate = $pdo->prepare("UPDATE list_products SET is_purchased = TRUE WHERE id = ?");
+                $stmtUpdate->execute([$productId]);
+
+                $pdo->commit(); // Confirmar la transacción
+
+                echo json_encode(['success' => true, 'message' => 'Producto marcado como comprado y movido al historial.']);
+            } catch (PDOException $e) {
+                $pdo->rollBack(); // Revertir si algo falla
+                error_log("Error al marcar como comprado: " . $e->getMessage()); // Para depuración
+                echo json_encode(['success' => false, 'message' => 'Error al registrar la compra: ' . $e->getMessage()]);
+            }
+            exit;
     }
 }
 
@@ -135,7 +194,15 @@ switch ($sortBy) {
 
 // --- 4. Get products from the database with filters and sorting ---
 $pdo = getDBConnection(); // Make sure this function returns a valid PDO object.
-$sql = "SELECT * FROM list_products" . $where . " " . $orderBy;
+$sql = "SELECT * FROM list_products" . $where . " AND is_purchased = FALSE " . $orderBy;
+
+// Si $where puede estar vacío:
+$finalWhere = " WHERE is_purchased = FALSE";
+if (!empty($whereClauses)) {
+    $finalWhere = " WHERE " . implode(' AND ', $whereClauses) . " AND is_purchased = FALSE";
+}
+
+$sql = "SELECT * FROM list_products" . $finalWhere . " " . $orderBy;
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($queryParams); // Execute the query with bound parameters for safety
@@ -325,6 +392,17 @@ $generalMonthlyBudget = $ocio_restante;
             </div>
         </div>
     </nav>
+
+
+
+    <!-- OPCIÓN 3: Botón Flotante Lateral -->
+    <div class="fixed right-6 bottom-6 z-50">
+        <a href="history.php"
+            class="flex items-center bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-4 py-3 rounded-full shadow-2xl hover:shadow-xl transform hover:scale-105 transition-all duration-300 group">
+            <i class="fas fa-history text-lg"></i>
+            <span class="font-medium hidden group-hover:inline-block transition-all">Ver Historial</span>
+        </a>
+    </div>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div id="alert-container" class="mb-0"></div>
@@ -812,13 +890,18 @@ $generalMonthlyBudget = $ocio_restante;
                                 </div>
 
                                 <!-- Botones de acción mejorados -->
-                                <div class="flex gap-3">
+                                <div class="flex gap-1">
                                     <a href="edit_product.php?id=<?php echo $product['id']; ?>"
                                         class="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                                         <i class="fas fa-edit"></i>
                                         <span class="hidden sm:inline">Editar</span>
                                     </a>
-
+                                    <button class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 mark-purchased-btn"
+                                        data-product-id="<?php echo $product['id']; ?>"
+                                        data-product-price="<?php echo htmlspecialchars($product['price']); ?>"
+                                        data-product-currency="<?php echo htmlspecialchars($product['currency']); ?>">
+                                        <i class="fas fa-check"></i> Comprado
+                                    </button>
                                     <button class="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 delete-product-btn"
                                         data-product-id="<?php echo $product['id']; ?>">
                                         <i class="fas fa-trash"></i>
@@ -832,6 +915,8 @@ $generalMonthlyBudget = $ocio_restante;
             </div>
         <?php endif; ?>
     </div>
+
+
 
     <div id="loading-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm">
         <div class="bg-white rounded-2xl p-8 max-w-sm mx-4 text-center animate-scale-in">
@@ -919,7 +1004,52 @@ $generalMonthlyBudget = $ocio_restante;
             const addProductForm = document.getElementById('add-product-form');
             const addNecessityLevelSelect = document.getElementById('necessity_level_add'); // Nuevo
 
+            document.querySelectorAll('.mark-purchased-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const productId = this.dataset.productId;
+                    const productPrice = this.dataset.productPrice; // Precio original
+                    const productCurrency = this.dataset.productCurrency; // Moneda original
 
+                    // Opcional: Pedir al usuario que confirme o ingrese el precio real pagado
+                    // let actualPrice = prompt('¿Cuál fue el precio final pagado por este producto?', productPrice);
+                    // if (actualPrice === null || actualPrice.trim() === '') {
+                    //     return; // Usuario canceló o no ingresó nada
+                    // }
+                    // const finalPriceToSend = cleanNumber(actualPrice); // Limpiar para enviar al backend
+
+                    // Usaremos el precio actual en la DB por simplicidad, o el que el usuario haya guardado.
+                    const finalPriceToSend = cleanNumber(productPrice);
+
+
+                    if (confirm('¿Estás seguro de que quieres marcar este producto como comprado? Se moverá a tu historial.')) {
+                        const formData = new FormData();
+                        formData.append('action', 'mark_purchased');
+                        formData.append('product_id', productId);
+                        formData.append('purchased_price', finalPriceToSend); // Envía el precio limpio
+                        formData.append('purchased_currency', productCurrency);
+
+                        fetch('index.php', { // O 'api.php' si lo separaste
+                                method: 'POST',
+                                body: formData
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    showAlert(data.message, 'success');
+                                    // Eliminar la tarjeta del DOM o recargar la lista
+                                    // this.closest('.product-card').remove(); // Eliminar visualmente
+                                    location.reload(); // Recarga simple para actualizar la lista
+                                } else {
+                                    showAlert(data.message, 'error');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error al marcar como comprado:', error);
+                                showAlert('Error de conexión al marcar como comprado.', 'error');
+                            });
+                    }
+                });
+            });
             // Función para limpiar el valor de formato y obtener solo los dígitos
             function cleanNumber(formattedValue) {
                 return formattedValue.replace(/[^0-9]/g, ''); // Elimina todo lo que no sea dígito

@@ -102,3 +102,42 @@ function obtener_datos_ultimos_meses($conexion, $meses)
     $stmt->close();
     return $datos;
 }
+
+function getPurchaseHistory($pdo, $limit = 20, $offset = 0)
+{
+    // Puedes añadir filtros aquí (por mes, año, categoría, nivel de necesidad, etc.)
+    $stmt = $pdo->prepare("SELECT ph.*, lp.name as original_name, lp.description as original_description
+                            FROM purchase_history ph
+                            JOIN list_products lp ON ph.product_id = lp.id
+                            ORDER BY purchased_at DESC
+                            LIMIT :limit OFFSET :offset");
+    $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// En history.php
+function getPurchaseReasonsAnalysis($pdo)
+{
+    $stmt = $pdo->query("SELECT purchase_reason, COUNT(*) as count
+                            FROM purchase_history
+                            WHERE purchase_reason IS NOT NULL AND purchase_reason != ''
+                            GROUP BY purchase_reason
+                            ORDER BY count DESC");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function getNecessityLevelAnalysis($pdo)
+{
+    $stmt = $pdo->query("SELECT necessity_level, COUNT(*) as count
+                            FROM purchase_history
+                            WHERE necessity_level IS NOT NULL
+                            GROUP BY necessity_level
+                            ORDER BY necessity_level DESC");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// Para usar:
+// $reasonsAnalysis = getPurchaseReasonsAnalysis(getDBConnection());
+// $necessityAnalysis = getNecessityLevelAnalysis(getDBConnection());
