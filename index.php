@@ -14,6 +14,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Asumiendo que has recibido los datos por POST
             $priceInput = $_POST['price'] ?? ''; // Obtener el valor del campo 'price' (que es tu hidden input)
 
+            // Nuevo campo: Nivel de Necesidad
+            $necessityLevel = $_POST['necessity_level'] ?? 3; // Valor predeterminado si no se selecciona
+            // Asegurarse de que necessityLevel sea un entero y esté dentro del rango esperado (1-5)
+            $necessityLevel = max(1, min(5, intval($necessityLevel)));
             // Limpiar el valor recibido para asegurar que sea numérico
             // Aunque JavaScript lo limpia, es CRÍTICO hacerlo también en el servidor
             // como medida de seguridad y robustez, ya que JS puede ser deshabilitado o manipulado.
@@ -27,8 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!empty($name)) {
                 $pdo = getDBConnection();
-                $stmt = $pdo->prepare("INSERT INTO list_products (name, description, price, currency, product_url, created_at) VALUES (?, ?, ?, ?, ?, ?)");
-                if ($stmt->execute([$name, $description, $price, $currency, $url, $fechaHoraActual])) {
+                $stmt = $pdo->prepare("INSERT INTO list_products (name, description, price, currency, product_url, created_at, necessity_level) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                if ($stmt->execute([$name, $description, $price, $currency, $url, $fechaHoraActual, $necessityLevel])) {
                     echo json_encode(['success' => true, 'message' => 'Producto agregado correctamente']);
                 } else {
                     echo json_encode(['success' => false, 'message' => 'Error al agregar producto']);
@@ -386,6 +390,22 @@ $lastUpdate = $lastUpdateTimestamp > 0 ? date('d/m/Y H:i', $lastUpdateTimestamp)
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div class="space-y-2">
+                        <label for="necessity_level_add" class="block text-sm font-semibold text-gray-700">
+                            <i class="fas fa-clipboard-check mr-2 text-indigo-500"></i>
+                            Nivel de Necesidad
+                        </label>
+                        <select id="necessity_level_add" name="necessity_level"
+                            class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300">
+                            <option value="" disabled selected>Selecciona un nivel</option>
+                            <option value="5">5 - ¡Esencial!</option>
+                            <option value="4">4 - Muy Necesario</option>
+                            <option value="3" selected>3 - Necesario</option>
+                            <option value="2">2 - Opcional</option>
+                            <option value="1">1 - Capricho</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-2">
                         <label class="block text-sm font-semibold text-gray-700">
                             <i class="fas fa-coins mr-2 text-yellow-500"></i>
                             Moneda
@@ -397,6 +417,18 @@ $lastUpdate = $lastUpdateTimestamp > 0 ? date('d/m/Y H:i', $lastUpdateTimestamp)
                             <option value="EUR">🇪🇺 EUR - Euro</option>
                         </select>
                     </div>
+
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="space-y-2 mb-8">
+                        <label class="block text-sm font-semibold text-gray-700">
+                            <i class="fas fa-align-left mr-2 text-gray-500"></i>
+                            Descripción
+                        </label>
+                        <textarea name="description" id="description" rows="3"
+                            class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-gray-100 focus:border-gray-500 transition-all duration-300 placeholder-gray-400 resize-none"
+                            placeholder="Descripción opcional del producto..."></textarea>
+                    </div>
                     <div class="space-y-2">
                         <label class="block text-sm font-semibold text-gray-700">
                             <i class="fas fa-link mr-2 text-purple-500"></i>
@@ -407,15 +439,7 @@ $lastUpdate = $lastUpdateTimestamp > 0 ? date('d/m/Y H:i', $lastUpdateTimestamp)
                             placeholder="https://ejemplo.com/producto">
                     </div>
                 </div>
-                <div class="space-y-2 mb-8">
-                    <label class="block text-sm font-semibold text-gray-700">
-                        <i class="fas fa-align-left mr-2 text-gray-500"></i>
-                        Descripción
-                    </label>
-                    <textarea name="description" id="description" rows="3"
-                        class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-gray-100 focus:border-gray-500 transition-all duration-300 placeholder-gray-400 resize-none"
-                        placeholder="Descripción opcional del producto..."></textarea>
-                </div>
+
                 <button type="submit"
                     class="w-full md:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2">
                     <i class="fas fa-plus"></i>
@@ -514,49 +538,123 @@ $lastUpdate = $lastUpdateTimestamp > 0 ? date('d/m/Y H:i', $lastUpdateTimestamp)
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                 <?php foreach ($products as $product): ?>
                     <div class="product-card bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 overflow-hidden card-hover animate-fade-in" data-product-id="<?php echo $product['id']; ?>">
-                        <div class="p-6">
-                            <div class="flex items-start justify-between mb-4">
-                                <h3 class="text-xl font-bold text-gray-800 flex-1 mr-4"><?php echo htmlspecialchars($product['name']); ?></h3>
-                                <div class="flex items-center space-x-2">
-                                    <span class="text-2xl"><?php echo $product['currency']; ?></span>
-                                </div>
-                            </div>
-                            <?php if (!empty($product['description'])): ?>
-                                <p class="text-gray-600 mb-4 line-clamp-2"><?php echo htmlspecialchars($product['description']); ?></p>
-                            <?php endif; ?>
+                        <div class="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden group">
+                            <!-- Header con gradiente sutil -->
+                            <div class="bg-gradient-to-br from-gray-50 to-white p-6 border-b border-gray-100">
+                                <div class="flex items-start justify-between mb-3">
+                                    <div class="flex-1 mr-4">
+                                        <h3 class="text-xl font-bold text-gray-900 mb-2 group-hover:text-gray-700 transition-colors">
+                                            <?php echo htmlspecialchars($product['name']); ?>
+                                        </h3>
 
-                            <div class="bg-gradient-to-r from-green-100 to-emerald-100 rounded-xl p-4 mb-4">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-sm font-medium text-green-700">Precio actual</span>
-                                    <div class="text-right">
-                                        <div class="text-2xl font-bold text-green-800" id="price-<?php echo $product['id']; ?>">
-                                            $<?php echo number_format($product['price'], 0, ',', '.'); ?> <?php echo $product['currency']; ?>
+                                        <!-- Indicador de necesidad mejorado -->
+                                        <div class="flex items-center gap-2">
+                                            <?php
+                                            $necessityLevel = $product['necessity_level'] ?? 0;
+                                            $necessityText = [
+                                                1 => 'Capricho',
+                                                2 => 'Opcional',
+                                                3 => 'Necesario',
+                                                4 => 'Muy Necesario',
+                                                5 => '¡Esencial!'
+                                            ];
+
+                                            // Configuración de colores y estilos por nivel
+                                            $levelConfig = [
+                                                1 => ['bg' => 'bg-red-50', 'text' => 'text-red-600', 'border' => 'border-red-200', 'icon' => 'fas fa-heart'],
+                                                2 => ['bg' => 'bg-orange-50', 'text' => 'text-orange-600', 'border' => 'border-orange-200', 'icon' => 'fas fa-star-half-alt'],
+                                                3 => ['bg' => 'bg-yellow-50', 'text' => 'text-yellow-700', 'border' => 'border-yellow-200', 'icon' => 'fas fa-star'],
+                                                4 => ['bg' => 'bg-green-50', 'text' => 'text-green-600', 'border' => 'border-green-200', 'icon' => 'fas fa-star'],
+                                                5 => ['bg' => 'bg-purple-50', 'text' => 'text-purple-700', 'border' => 'border-purple-200', 'icon' => 'fas fa-bolt']
+                                            ];
+
+                                            $config = $levelConfig[$necessityLevel] ?? ['bg' => 'bg-gray-50', 'text' => 'text-gray-600', 'border' => 'border-gray-200', 'icon' => 'fas fa-question'];
+                                            ?>
+
+                                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold <?php echo $config['bg'] . ' ' . $config['text'] . ' ' . $config['border']; ?> border">
+                                                <i class="<?php echo $config['icon']; ?> text-xs"></i>
+                                                <?php echo $necessityText[$necessityLevel] ?? 'N/A'; ?>
+                                            </span>
+
+                                            <!-- Indicador visual de estrellas -->
+                                            <div class="flex items-center gap-0.5">
+                                                <?php for ($i = 1; $i <= 5; $i++): ?>
+                                                    <i class="fas fa-star text-xs <?php echo $i <= $necessityLevel ? $config['text'] : 'text-gray-300'; ?>"></i>
+                                                <?php endfor; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Moneda destacada -->
+                                    <div class="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white text-lg font-bold shadow-lg">
+                                        <?php echo $product['currency']; ?>
+                                    </div>
+                                </div>
+
+                                <!-- Descripción -->
+                                <?php if (!empty($product['description'])): ?>
+                                    <p class="text-gray-600 text-sm leading-relaxed line-clamp-2 mb-0">
+                                        <?php echo htmlspecialchars($product['description']); ?>
+                                    </p>
+                                <?php endif; ?>
+                            </div>
+
+                            <!-- Contenido principal -->
+                            <div class="p-6">
+                                <!-- Precio destacado -->
+                                <div class="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-5 mb-6 border border-emerald-100">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <span class="text-sm font-medium text-emerald-700 mb-1 block">Precio actual</span>
+                                            <div class="text-3xl font-bold text-emerald-800" id="price-<?php echo $product['id']; ?>">
+                                                $<?php echo number_format($product['price'], 0, ',', '.'); ?>
+                                                <span class="text-lg font-medium text-emerald-600"><?php echo $product['currency']; ?></span>
+                                            </div>
+                                        </div>
+                                        <div class="text-emerald-600">
+                                            <i class="fas fa-chart-line text-2xl"></i>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div class="text-sm text-gray-500 mb-4 flex items-center">
-                                <i class="fas fa-clock mr-2"></i>
-                                Actualizado: <?php echo date('d/m/Y H:i', strtotime($product['updated_at'])); ?>
-                            </div>
-                            <?php if (!empty($product['product_url'])): ?>
-                                <div class="mb-4">
-                                    <a href="<?php echo htmlspecialchars($product['product_url']); ?>" target="_blank"
-                                        class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium">
-                                        <i class="fas fa-external-link-alt mr-2"></i>
-                                        Ver producto
-                                    </a>
+                                <!-- Información adicional -->
+                                <div class="space-y-3 mb-6">
+                                    <!-- Fecha de actualización -->
+                                    <div class="flex items-center text-sm text-gray-500">
+                                        <div class="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-lg mr-3">
+                                            <i class="fas fa-clock text-gray-400"></i>
+                                        </div>
+                                        <span>Actualizado: <?php echo date('d/m/Y H:i', strtotime($product['updated_at'])); ?></span>
+                                    </div>
+
+                                    <!-- Enlace al producto -->
+                                    <?php if (!empty($product['product_url'])): ?>
+                                        <div class="flex items-center">
+                                            <div class="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-lg mr-3">
+                                                <i class="fas fa-external-link-alt text-blue-500 text-sm"></i>
+                                            </div>
+                                            <a href="<?php echo htmlspecialchars($product['product_url']); ?>" target="_blank"
+                                                class="text-blue-600 hover:text-blue-800 font-medium text-sm transition-colors hover:underline">
+                                                Ver producto en tienda
+                                            </a>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
-                            <?php endif; ?>
-                            <div class="flex gap-3">
-                                <a href="edit_product.php?id=<?php echo $product['id']; ?>" class="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2">
-                                    <i class="fas fa-edit"></i>
-                                </a>
 
-                                <button class="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 delete-product-btn" data-product-id="<?php echo $product['id']; ?>">
-                                    <i class="fas fa-trash"></i>
-                                </button>
+                                <!-- Botones de acción mejorados -->
+                                <div class="flex gap-3">
+                                    <a href="edit_product.php?id=<?php echo $product['id']; ?>"
+                                        class="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                                        <i class="fas fa-edit"></i>
+                                        <span class="hidden sm:inline">Editar</span>
+                                    </a>
+
+                                    <button class="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 delete-product-btn"
+                                        data-product-id="<?php echo $product['id']; ?>">
+                                        <i class="fas fa-trash"></i>
+                                        <span class="hidden sm:inline">Eliminar</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -648,6 +746,9 @@ $lastUpdate = $lastUpdateTimestamp > 0 ? date('d/m/Y H:i', $lastUpdateTimestamp)
             const priceFormattedInput = document.getElementById('price_formatted'); // Tu input visible
             const priceRawInput = document.getElementById('price_raw'); // Tu input oculto para la BD
             const form = priceFormattedInput.closest('form'); // Obtén el formulario padre
+            const addProductForm = document.getElementById('add-product-form');
+            const addNecessityLevelSelect = document.getElementById('necessity_level_add'); // Nuevo
+
 
             // Función para limpiar el valor de formato y obtener solo los dígitos
             function cleanNumber(formattedValue) {
@@ -712,6 +813,24 @@ $lastUpdate = $lastUpdateTimestamp > 0 ? date('d/m/Y H:i', $lastUpdateTimestamp)
                         // e.preventDefault(); // Evita el envío si es un campo requerido
                         // priceRawInput.value = '0'; // O establecerlo a 0
                     }
+                });
+            }
+            if (addProductForm) {
+                addProductForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+
+                    const formData = new FormData(this);
+                    // Si usas un campo oculto 'action' en el formulario:
+                    // formData.append('action', 'add_product');
+
+                    // === Validación adicional para el nivel de necesidad ===
+                    const selectedNecessityLevel = addNecessityLevelSelect.value;
+                    if (selectedNecessityLevel === '' || parseInt(selectedNecessityLevel) < 1 || parseInt(selectedNecessityLevel) > 5) {
+                        showAlert('Por favor, selecciona un nivel de necesidad para el producto.', 'error');
+                        return; // Detiene el envío del formulario
+                    }
+                    // ======================================================
+
                 });
             }
         });

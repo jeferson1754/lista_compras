@@ -12,12 +12,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $priceRaw = $_POST['price_raw'] ?? '0'; // Obtener el valor numérico limpio
     $currency = $_POST['currency'] ?? 'CLP'; // Asegúrate de que CLP sea el default si es tu moneda principal
     $url = $_POST['url'] ?? '';
-
+    $necessityLevel = $_POST['necessity_level'] ?? 3;
     // --- LIMPIEZA Y VALIDACIÓN DEL PRECIO EN PHP ---
     // Elimina cualquier caracter no numérico (para seguridad, aunque JS ya lo hace)
     $cleanPrice = preg_replace('/[^0-9]/', '', $priceRaw);
     // Convierte a entero. Si tu DB permite decimales, usa floatval().
     // Aquí asumimos enteros para CLP.
+
+    // Nuevos campos
+    // Valor por defecto si no se envía
+    // Asegurarse de que necessityLevel sea un entero y esté dentro del rango esperado (1-5)
+    $necessityLevel = max(1, min(5, intval($necessityLevel)));
     $price = intval($cleanPrice);
 
     // Validaciones
@@ -40,11 +45,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    // Validar nivel de necesidad (opcional, ya lo limitamos con max/min pero es buena práctica)
+    if (!is_int($necessityLevel) || $necessityLevel < 1 || $necessityLevel > 5) {
+        echo json_encode(['success' => false, 'message' => 'Nivel de necesidad inválido.']);
+        exit;
+    }
+
     $pdo = getDBConnection(); // Asegúrate de que esta función está definida en config.php
 
-    $stmt = $pdo->prepare("UPDATE list_products SET name = ?, description = ?, price = ?, currency = ?, product_url = ?, updated_at = ? WHERE id = ?");
+    $stmt = $pdo->prepare("UPDATE list_products SET name = ?, description = ?, price = ?, currency = ?, product_url = ?, updated_at = ?, necessity_level = ? WHERE id = ?");
 
-    if ($stmt->execute([$name, $description, $price, $currency, $url, $fechaHoraActual, $productId])) {
+    if ($stmt->execute([$name, $description, $price, $currency, $url, $fechaHoraActual, $necessityLevel, $productId])) {
         echo json_encode(['success' => true, 'message' => 'Producto actualizado correctamente.']);
     } else {
         echo json_encode(['success' => false, 'message' => 'Error al actualizar el producto.']);
@@ -271,6 +282,20 @@ if ($productId > 0) {
                     </div>
                     <div class="form-row">
                         <div class="form-group">
+                            <label for="necessity_level">Nivel de Necesidad</label>
+                            <select id="necessity_level" name="necessity_level"
+                                class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300">
+                                <option value="5" <?php echo (isset($product['necessity_level']) && $product['necessity_level'] == 5) ? 'selected' : ''; ?>>5 - ¡Esencial!</option>
+                                <option value="4" <?php echo (isset($product['necessity_level']) && $product['necessity_level'] == 4) ? 'selected' : ''; ?>>4 - Muy Necesario</option>
+                                <option value="3" <?php echo (isset($product['necessity_level']) && $product['necessity_level'] == 3) ? 'selected' : ''; ?>>3 - Necesario</option>
+                                <option value="2" <?php echo (isset($product['necessity_level']) && $product['necessity_level'] == 2) ? 'selected' : ''; ?>>2 - Opcional</option>
+                                <option value="1" <?php echo (isset($product['necessity_level']) && $product['necessity_level'] == 1) ? 'selected' : ''; ?>>1 - Capricho</option>
+                                <?php if (!isset($product['necessity_level'])): ?>
+                                    <option value="" disabled selected>Selecciona un nivel</option>
+                                <?php endif; ?>
+                            </select>
+                        </div>
+                        <div class="form-group">
                             <label for="currency">Moneda</label>
                             <select id="currency" name="currency">
                                 <option value="CLP" <?php echo ($product['currency'] == 'CLP') ? 'selected' : ''; ?>>CLP - Peso Chileno</option>
@@ -278,14 +303,18 @@ if ($productId > 0) {
                                 <option value="EUR" <?php echo ($product['currency'] == 'EUR') ? 'selected' : ''; ?>>EUR - Euro</option>
                             </select>
                         </div>
-                        <div class="form-group">
+                    </div>
+                    <div class="form-row">
+
+                        <div class="form-group full-width">
                             <label for="url">URL del Producto</label>
                             <input type="url" id="url" name="url" placeholder="https://..." value="<?php echo htmlspecialchars($product['product_url']); ?>">
                         </div>
-                    </div>
-                    <div class="form-group full-width">
-                        <label for="description">Descripción</label>
-                        <textarea id="description" name="description" rows="3" placeholder="Descripción opcional del producto"><?php echo htmlspecialchars($product['description']); ?></textarea>
+
+                        <div class="form-group full-width">
+                            <label for="description">Descripción</label>
+                            <textarea id="description" name="description" rows="3" placeholder="Descripción opcional del producto"><?php echo htmlspecialchars($product['description']); ?></textarea>
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-primary">Guardar Cambios</button>
                     <a href="index.php" class="btn btn-secondary">Cancelar</a>
@@ -335,6 +364,8 @@ if ($productId > 0) {
             const priceRawInput = document.getElementById('price_raw'); // Tu input oculto para la BD
             const currencySelect = document.getElementById('currency'); // Tu select de moneda
             const form = document.getElementById('edit-product-form');
+            const necessityLevelSelect = document.getElementById('necessity_level'); // Nuevo
+
 
             // --- Lógica de formato en tiempo real para el campo de precio ---
             // Solo aplica el formato si la moneda seleccionada es CLP
@@ -396,6 +427,13 @@ if ($productId > 0) {
                 const productName = document.getElementById('name').value.trim();
                 const productPriceForValidation = parseInt(priceRawInput.value, 10); // Usa el valor limpio del hidden input
                 const productUrl = document.getElementById('url').value.trim();
+
+                // Validación del nivel de necesidad
+                const selectedNecessityLevel = necessityLevelSelect.value;
+                if (selectedNecessityLevel === '' || parseInt(selectedNecessityLevel) < 1 || parseInt(selectedNecessityLevel) > 5) {
+                    showAlert('Por favor, selecciona un nivel de necesidad válido.', 'error');
+                    return;
+                }
 
                 if (productName === '') {
                     showAlert('El nombre del producto es requerido.', 'error');
