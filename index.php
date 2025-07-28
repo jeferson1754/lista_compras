@@ -30,11 +30,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $url = $_POST['url'] ?? '';
 
             // --- NUEVO CAMPO: Motivo de la Compra ---
-            $purchaseReason = $_POST['purchase_reason'] ?? null;
-            if (!empty($purchaseReason)) {
-                $purchaseReason = htmlspecialchars(trim($purchaseReason)); // Limpiar el texto
+            $purchaseReasonOption = $_POST['purchase_reason'] ?? '';
+
+            $purchaseReason = '';
+            if ($purchaseReasonOption === 'custom') {
+                // Si el usuario eligió "Otro", el motivo es lo que escribió en el textarea
+                $purchaseReason = $_POST['purchase_reason_custom'] ?? '';
             } else {
-                $purchaseReason = null; // Asegurar NULL si está vacío
+                // De lo contrario, el motivo es el valor de la opción predefinida que eligió
+                $purchaseReason = $purchaseReasonOption;
             }
 
             if (!empty($name)) {
@@ -126,26 +130,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$resultados = obtener_datos($conexion, "c.Nombre = 'Ocio' OR c.Categoria_Padre = '24'", $current_month, $current_year, $previous_month, $previous_year);
-
-$datos_financieros = obtener_datos_ultimos_meses($conexion, 6);
-
-$ultimo_mes = end($datos_financieros);
-
-$balance_mes_actual = $ultimo_mes['ingresos'] - $ultimo_mes['egresos'];
-$total_ingresos = $ultimo_mes['ingresos'];
-
-$total_ocio = $resultados['total'];
-$result_detalles_ocio = $resultados['detalles'];
-$anterior_total_ocio = $resultados['anterior_total'];
 
 // --- 1. Obtener y sanitizar parámetros de filtro y ordenamiento ---
 $searchName = isset($_GET['search_name']) ? trim($_GET['search_name']) : '';
 $categoryId = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0; // 0 for 'all categories' or no filter
 // --- 3. Construir la cláusula ORDER BY dinámicamente ---
-$ocio = $total_ingresos * 0.3;
 
-$ocio_restante = $ocio - $total_ocio;
 
 $leisureBudget = floatval($ocio);
 
@@ -390,6 +380,7 @@ $generalMonthlyBudget = $ocio_restante;
                         <i class="fas fa-shopping-cart text-white text-lg"></i>
                     </div>
                     <h1 class="text-xl font-bold text-gray-800">Lista de Compras</h1>
+
                 </div>
                 <div class="flex items-center space-x-4">
                     <span class="text-sm text-gray-600 bg-white/50 px-3 py-1 rounded-full">
@@ -409,6 +400,18 @@ $generalMonthlyBudget = $ocio_restante;
             class="flex items-center bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-4 py-3 rounded-full shadow-2xl hover:shadow-xl transform hover:scale-105 transition-all duration-300 group">
             <i class="fas fa-history text-lg"></i>
             <span class="font-medium hidden group-hover:inline-block transition-all">Ver Historial</span>
+        </a>
+    </div>
+
+    <div class="fixed left-6 bottom-6 z-50">
+        <a href="ai_advisor.php"
+            class="flex items-center bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-4 py-3 rounded-full shadow-2xl hover:shadow-xl transform hover:scale-105 transition-all duration-300 group">
+
+            <i class="fas fa-robot text-lg"></i>
+
+            <span class="font-medium hidden group-hover:inline-block transition-all ml-2">
+                Asesor IA
+            </span>
         </a>
     </div>
 
@@ -671,16 +674,25 @@ $generalMonthlyBudget = $ocio_restante;
                             Motivo de la Compra
                         </label>
                         <select id="purchase_reason_add" name="purchase_reason"
-                            class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-pink-100 focus:border-pink-500 transition-all duration-300">
-                            <option value="" selected>Selecciona un motivo</option>
-                            <option value="Necesidad Real">Necesidad Real</option>
-                            <option value="Reemplazo">Reemplazo</option>
-                            <option value="Por Impulso">Por Impulso</option>
-                            <option value="Evento Específico">Para un Evento Específico</option>
-                            <option value="Deseo">Deseo / Capricho</option>
-                            <option value="Promoción">Por Promoción / Oferta</option>
-                            <option value="Curiosidad">Curiosidad / Probar</option>
+                            class="block w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-xl shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 transition-all duration-300">
+
+                            <option value="" selected disabled>Selecciona un motivo de compra</option>
+                            <option value="Reemplazo por producto dañado">Reemplazo por producto dañado</option>
+                            <option value="Se acabó y es de uso regular">Se acabó y es de uso regular</option>
+                            <option value="Mejora de un producto existente">Mejora de un producto existente</option>
+                            <option value="Para un proyecto o evento específico">Para un proyecto o evento específico</option>
+                            <option value="Oferta o descuento imperdible">Oferta o descuento imperdible</option>
+                            <option value="Por impulso">Compra por impulso</option>
+                            <option value="Deseo o capricho">Deseo o capricho</option>
+                            <option value="Curiosidad o prueba">Curiosidad o para probar</option>
+                            <option value="custom">Otro (especificar)...</option>
                         </select>
+
+
+                        <div id="custom-reason-wrapper" class="mt-2 hidden">
+                            <label for="custom-reason-textarea" class="sr-only">Motivo personalizado</label>
+                            <textarea id="custom-reason-textarea" name="purchase_reason_custom" rows="3" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Describe el motivo específico aquí..."></textarea>
+                        </div>
                     </div>
 
 
@@ -738,28 +750,6 @@ $generalMonthlyBudget = $ocio_restante;
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <!--
-                    <select id="category-select" name="category_id"
-                        class="px-4 py-3 bg-white/80 backdrop-blur-lg border border-white/20 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300">
-                        <option value="0">Todas las categorías</option>
-                        <?php
-                        // Suponiendo que tienes una variable $categories con tus categorías
-                        // Ejemplo: $categories = [['id' => 1, 'name' => 'Electrónica'], ['id' => 2, 'name' => 'Ropa']];
-                        // Debes obtener estas categorías de tu base de datos si es necesario
-                        $allCategories = []; // ¡Asegúrate de poblar esto desde tu DB si tienes categorías!
-                        // Ejemplo de cómo podrías obtenerlas:
-                        /*
-                $stmtCategories = $pdo->query("SELECT id, name FROM categories ORDER BY name ASC");
-                $allCategories = $stmtCategories->fetchAll(PDO::FETCH_ASSOC);
-                */
-
-                        foreach ($allCategories as $cat) {
-                            $selected = ($categoryId == $cat['id']) ? 'selected' : '';
-                            echo "<option value=\"{$cat['id']}\" {$selected}>" . htmlspecialchars($cat['name']) . "</option>";
-                        }
-                        ?>
-                    </select>
-                    -->
 
                     <select id="sort-select" name="sort_by"
                         class="px-4 py-3 bg-white/80 backdrop-blur-lg border border-white/20 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300">
@@ -959,7 +949,28 @@ $generalMonthlyBudget = $ocio_restante;
         </div>
     </div>
 
+    <script>
+        // Seleccionamos los elementos del DOM que necesitamos manipular
+        const reasonSelect = document.getElementById('purchase_reason_add');
+        const customReasonWrapper = document.getElementById('custom-reason-wrapper');
+        const customReasonTextarea = document.getElementById('custom-reason-textarea');
 
+        // Escuchamos el evento 'change' en el selector
+        reasonSelect.addEventListener('change', function() {
+            // Verificamos si la opción seleccionada es la de "custom"
+            if (reasonSelect.value === 'custom') {
+                // Si es "custom", mostramos el contenedor del textarea
+                customReasonWrapper.classList.remove('hidden');
+                // Hacemos que el textarea sea requerido para que no lo dejen vacío
+                customReasonTextarea.setAttribute('required', '');
+            } else {
+                // Si es cualquier otra opción, ocultamos el contenedor
+                customReasonWrapper.classList.add('hidden');
+                // Quitamos el 'required' del textarea por si acaso
+                customReasonTextarea.removeAttribute('required');
+            }
+        });
+    </script>
     <script>
         function showAlert(message, type = 'success') {
             const alertContainer = document.getElementById('alert-container');

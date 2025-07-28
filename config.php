@@ -40,3 +40,19 @@ if ($previous_month == 0) {
     $previous_month = 12;
     $previous_year = $current_year - 1;
 }
+
+$resultados = obtener_datos($conexion, "c.Nombre = 'Ocio' OR c.Categoria_Padre = '24'", $current_month, $current_year, $previous_month, $previous_year);
+
+$datos_financieros = obtener_datos_ultimos_meses($conexion, 6);
+
+$ultimo_mes = end($datos_financieros);
+
+$balance_mes_actual = $ultimo_mes['ingresos'] - $ultimo_mes['egresos'];
+$total_ingresos = $ultimo_mes['ingresos'];
+
+$total_ocio = $resultados['total'];
+$result_detalles_ocio = $resultados['detalles'];
+$anterior_total_ocio = $resultados['anterior_total'];
+$ocio = $total_ingresos * 0.3;
+
+$ocio_restante = $ocio - $total_ocio;

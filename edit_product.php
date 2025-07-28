@@ -18,12 +18,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cleanPrice = preg_replace('/[^0-9]/', '', $priceRaw);
     // Convierte a entero. Si tu DB permite decimales, usa floatval().
     // Aquí asumimos enteros para CLP.
-    $purchaseReason = $_POST['purchase_reason'] ?? null;
-    if (!empty($purchaseReason)) {
-        $purchaseReason = htmlspecialchars(trim($purchaseReason)); // Limpiar el texto
+    $purchaseReasonOption = $_POST['purchase_reason_option'] ?? '';
+
+    $purchaseReason = '';
+    if ($purchaseReasonOption === 'custom') {
+        // Si el usuario eligió "Otro", el motivo es lo que escribió en el textarea
+        $purchaseReason = $_POST['purchase_reason_custom'] ?? '';
     } else {
-        $purchaseReason = null; // Asegurar NULL si está vacío
+        // De lo contrario, el motivo es el valor de la opción predefinida que eligió
+        $purchaseReason = $purchaseReasonOption;
     }
+
     // Nuevos campos
     // Valor por defecto si no se envía
     // Asegurarse de que necessityLevel sea un entero y esté dentro del rango esperado (1-5)
@@ -85,6 +90,26 @@ if ($productId > 0) {
     header('Location: index.php?message=ID+de+producto+no+proporcionado');
     exit;
 }
+
+
+// La lista de tus motivos predefinidos. Tenerla en un array es más fácil de gestionar.
+$predefinedReasons = [
+    'Necesidad Real',
+    'Reemplazo',
+    'Por Impulso',
+    'Evento Específico',
+    'Deseo / Capricho',
+    'Por Promoción / Oferta',
+    'Curiosidad / Probar'
+];
+
+// Obtenemos el motivo guardado en la base de datos.
+$savedReason = $product['purchase_reason'] ?? '';
+
+// Verificamos si el motivo guardado es uno personalizado.
+// Es personalizado si NO está en nuestra lista de opciones predefinidas.
+$isCustomReason = !empty($savedReason) && !in_array($savedReason, $predefinedReasons);
+
 ?>
 
 <!DOCTYPE html>
@@ -94,7 +119,10 @@ if ($productId > 0) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editar Producto - Gestor de Precios</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
         /* Estilos CSS idénticos a los de tu página principal para mantener la consistencia */
         * {
@@ -267,7 +295,7 @@ if ($productId > 0) {
                     <div class="form-row">
                         <div class="form-group">
                             <label for="name">Nombre del Producto *</label>
-                            <input type="text" id="name" name="name" value="<?php echo htmlspecialchars($product['name']); ?>" required>
+                            <input type="text" id="name" class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 placeholder-gray-400" name="name" value="<?php echo htmlspecialchars($product['name']); ?>" required>
                         </div>
                         <div class="form-group">
                             <label for="price_formatted">Precio</label>
@@ -301,26 +329,33 @@ if ($productId > 0) {
                             </select>
                         </div>
 
-                        <div class="form-group">
-                            <label for="purchase_reason">Motivo de la Compra</label>
-                            <select id="purchase_reason" name="purchase_reason"
-                                class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-pink-100 focus:border-pink-500 transition-all duration-300">
-                                <option value="">Selecciona un motivo</option>
-                                <option value="Necesidad Real" <?php echo (isset($product['purchase_reason']) && $product['purchase_reason'] == 'Necesidad Real') ? 'selected' : ''; ?>>Necesidad Real</option>
-                                <option value="Reemplazo" <?php echo (isset($product['purchase_reason']) && $product['purchase_reason'] == 'Reemplazo') ? 'selected' : ''; ?>>Reemplazo</option>
-                                <option value="Por Impulso" <?php echo (isset($product['purchase_reason']) && $product['purchase_reason'] == 'Por Impulso') ? 'selected' : ''; ?>>Por Impulso</option>
-                                <option value="Evento Específico" <?php echo (isset($product['purchase_reason']) && $product['purchase_reason'] == 'Evento Específico') ? 'selected' : ''; ?>>Para un Evento Específico</option>
-                                <option value="Deseo" <?php echo (isset($product['purchase_reason']) && $product['purchase_reason'] == 'Deseo') ? 'selected' : ''; ?>>Deseo / Capricho</option>
-                                <option value="Promoción" <?php echo (isset($product['purchase_reason']) && $product['purchase_reason'] == 'Promoción') ? 'selected' : ''; ?>>Por Promoción / Oferta</option>
-                                <option value="Curiosidad" <?php echo (isset($product['purchase_reason']) && $product['purchase_reason'] == 'Curiosidad') ? 'selected' : ''; ?>>Curiosidad / Probar</option>
-                            </select>
-                        </div>
+                        <div class="form-group mb-4">
+                            <label for="reason-select" class="block text-sm font-medium text-gray-700 mb-1">Motivo de la Compra</label>
 
+                            <select id="reason-select" name="purchase_reason_option" class="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:ring-4 focus:ring-pink-100 focus:border-pink-500 transition-all duration-300">
+                                <option value="">Selecciona un motivo</option>
+
+                                <?php foreach ($predefinedReasons as $reason): ?>
+                                    <option value="<?php echo htmlspecialchars($reason); ?>" <?php echo ($savedReason === $reason) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($reason); ?>
+                                    </option>
+                                <?php endforeach; ?>
+
+                                <option value="custom" <?php echo $isCustomReason ? 'selected' : ''; ?>>
+                                    Otro (especificar)...
+                                </option>
+                            </select>
+
+                            <div id="custom-reason-wrapper" class="mt-2 <?php echo $isCustomReason ? '' : 'hidden'; ?>">
+                                <label for="custom-reason-textarea" class="sr-only">Motivo personalizado</label>
+                                <textarea id="custom-reason-textarea" name="purchase_reason_custom" rows="3" class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Describe el motivo específico aquí..."><?php echo $isCustomReason ? htmlspecialchars($savedReason) : ''; ?></textarea>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="currency">Moneda</label>
-                            <select id="currency" name="currency">
+                            <select id="currency" name="currency" class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300">
                                 <option value="CLP" <?php echo ($product['currency'] == 'CLP') ? 'selected' : ''; ?>>CLP - Peso Chileno</option>
                                 <option value="USD" <?php echo ($product['currency'] == 'USD') ? 'selected' : ''; ?>>USD - Dólar</option>
                                 <option value="EUR" <?php echo ($product['currency'] == 'EUR') ? 'selected' : ''; ?>>EUR - Euro</option>
@@ -328,12 +363,12 @@ if ($productId > 0) {
                         </div>
                         <div class="form-group">
                             <label for="url">URL del Producto</label>
-                            <input type="url" id="url" name="url" placeholder="https://..." value="<?php echo htmlspecialchars($product['product_url']); ?>">
+                            <input type="url" id="url" name="url" placeholder="https://..." value="<?php echo htmlspecialchars($product['product_url']); ?>" class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 placeholder-gray-400">
                         </div>
                     </div>
                     <div class="form-group full-width">
                         <label for="description">Descripción</label>
-                        <textarea id="description" name="description" rows="3" placeholder="Descripción opcional del producto"><?php echo htmlspecialchars($product['description']); ?></textarea>
+                        <textarea id="description" name="description" class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-gray-100 focus:border-gray-500 transition-all duration-300 placeholder-gray-400 resize-none" rows="3" placeholder="Descripción opcional del producto"><?php echo htmlspecialchars($product['description']); ?></textarea>
                     </div>
 
                     <button type="submit" class="btn btn-primary">Guardar Cambios</button>
@@ -344,7 +379,22 @@ if ($productId > 0) {
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js"></script>
+    <script>
+        const reasonSelect = document.getElementById('reason-select');
+        const customReasonWrapper = document.getElementById('custom-reason-wrapper');
+        const customReasonTextarea = document.getElementById('custom-reason-textarea');
 
+        reasonSelect.addEventListener('change', function() {
+            if (reasonSelect.value === 'custom') {
+                customReasonWrapper.classList.remove('hidden');
+                customReasonTextarea.setAttribute('required', '');
+            } else {
+                customReasonWrapper.classList.add('hidden');
+                customReasonTextarea.removeAttribute('required');
+                customReasonTextarea.value = ''; // Limpia el textarea si se cambia de opción
+            }
+        });
+    </script>
     <script>
         function showAlert(message, type = 'success') {
             const alertContainer = document.getElementById('alert-container');
