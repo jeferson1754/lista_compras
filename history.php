@@ -140,6 +140,12 @@ require_once 'config.php';
 
     <div class="container mt-8 max-w-7xl mx-auto px-4">
         <!-- Header mejorado -->
+        <div class="mb-6">
+            <a href="index.php" class="text-indigo-600 hover:text-indigo-800 font-semibold transition-colors flex items-center gap-2 w-fit">
+                <i class="fas fa-arrow-left"></i>
+                <span>Volver a mi Lista</span>
+            </a>
+        </div>
         <div class="mb-8">
             <div class="flex items-center justify-between mb-6">
                 <div>
