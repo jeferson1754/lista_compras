@@ -20,6 +20,23 @@ function getDBConnection()
     }
 }
 
+$conexion = mysqli_connect(DB_HOST, DB_USER, DB_PASS, DB_NAME) or die("No se ha podido conectar al Servidor");
+
+include('funciones.php');
+
 date_default_timezone_set('America/Santiago');
 
 $fechaHoraActual = date('Y-m-d H:i:s');
+
+// Get current month and year
+$current_month = date('m');
+$current_year = date('Y');
+
+$previous_month = $current_month - 1;
+$previous_year = $current_year;
+
+// Si es enero, ir al mes 12 del año anterior
+if ($previous_month == 0) {
+    $previous_month = 12;
+    $previous_year = $current_year - 1;
+}

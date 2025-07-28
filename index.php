@@ -59,12 +59,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$resultados = obtener_datos($conexion, "c.Nombre = 'Ocio' OR c.Categoria_Padre = '24'", $current_month, $current_year, $previous_month, $previous_year);
+
+$datos_financieros = obtener_datos_ultimos_meses($conexion, 6);
+
+$ultimo_mes = end($datos_financieros);
+
+$balance_mes_actual = $ultimo_mes['ingresos'] - $ultimo_mes['egresos'];
+$total_ingresos = $ultimo_mes['ingresos'];
+
+$total_ocio = $resultados['total'];
+$result_detalles_ocio = $resultados['detalles'];
+$anterior_total_ocio = $resultados['anterior_total'];
 
 // --- 1. Obtener y sanitizar parámetros de filtro y ordenamiento ---
 $searchName = isset($_GET['search_name']) ? trim($_GET['search_name']) : '';
 $categoryId = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0; // 0 for 'all categories' or no filter
 // --- 3. Construir la cláusula ORDER BY dinámicamente ---
+$ocio = $total_ingresos * 0.3;
 
+$ocio_restante = $ocio - $total_ocio;
+
+$leisureBudget = floatval($ocio);
 
 // --- 2. Construir la cláusula WHERE dinámicamente ---
 $whereClauses = [];
@@ -145,7 +161,9 @@ $totalProducts = count($products);
 $avgPrice = $totalProducts > 0 ? $totalValue / $totalProducts : 0;
 // Formatear la fecha de última actualización
 $lastUpdate = $lastUpdateTimestamp > 0 ? date('d/m/Y H:i', $lastUpdateTimestamp) : 'Nunca';
+$estimatedTotalCost = $totalValue;
 
+$generalMonthlyBudget = $ocio_restante;
 
 ?>
 <!DOCTYPE html>
@@ -309,8 +327,21 @@ $lastUpdate = $lastUpdateTimestamp > 0 ? date('d/m/Y H:i', $lastUpdateTimestamp)
     </nav>
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div id="alert-container" class="mb-6"></div>
-
+        <div id="alert-container" class="mb-0"></div>
+        <div class="mb-6">
+            <h2 class="text-3xl font-bold text-gray-900 mb-2 flex items-center group">
+                <div class="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl mr-4 shadow-lg group-hover:shadow-xl transition-all duration-300">
+                    <i class="fas fa-boxes text-white text-lg"></i>
+                </div>
+                <span class="bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                    Mis Productos
+                </span>
+                <span class="ml-4 inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-600 text-lg font-medium rounded-full border">
+                    <?php echo count($products); ?>
+                </span>
+            </h2>
+            <p class="text-gray-600 ml-16">Gestiona y monitorea tus productos deseados</p>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="bg-white/70 backdrop-blur-lg rounded-2xl p-6 border border-white/20 shadow-lg animate-fade-in">
                 <div class="flex items-center">
@@ -359,6 +390,142 @@ $lastUpdate = $lastUpdateTimestamp > 0 ? date('d/m/Y H:i', $lastUpdateTimestamp)
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div class="mb-8">
+            <!-- Título principal con animación -->
+
+
+            <!-- Panel de resumen financiero -->
+            <div class="grid md:grid-cols-2 gap-6">
+
+                <!-- Tarjeta de Gasto Estimado -->
+                <div class="relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group
+            <?php echo ($estimatedTotalCost > $generalMonthlyBudget && $generalMonthlyBudget > 0) ? 'ring-2 ring-red-200' : 'ring-1 ring-gray-100'; ?>">
+
+                    <!-- Indicador lateral animado -->
+                    <div class="absolute left-0 top-0 w-1.5 h-full bg-gradient-to-b 
+                <?php echo ($estimatedTotalCost > $generalMonthlyBudget && $generalMonthlyBudget > 0) ? 'from-red-400 to-red-600' : 'from-emerald-400 to-emerald-600'; ?>
+                group-hover:w-2 transition-all duration-300">
+                    </div>
+
+                    <!-- Contenido principal -->
+                    <div class="p-6 pl-8">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center mb-3">
+                                    <div class="flex items-center justify-center w-10 h-10 rounded-xl mr-3
+                                <?php echo ($estimatedTotalCost > $generalMonthlyBudget && $generalMonthlyBudget > 0) ? 'bg-red-100' : 'bg-emerald-100'; ?>">
+                                        <i class="fas fa-calculator 
+                                    <?php echo ($estimatedTotalCost > $generalMonthlyBudget && $generalMonthlyBudget > 0) ? 'text-red-600' : 'text-emerald-600'; ?>">
+                                        </i>
+                                    </div>
+                                    <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+                                        Gasto Estimado Total
+                                    </h3>
+                                </div>
+
+                                <div class="mb-4">
+                                    <p class="text-3xl font-bold text-gray-900 mb-1">
+                                        $<?php echo number_format($estimatedTotalCost, 0, ',', '.'); ?>
+                                        <span class="text-lg font-medium text-gray-500">CLP</span>
+                                    </p>
+
+                                    <!-- Barra de progreso visual -->
+                                    <?php if ($generalMonthlyBudget > 0): ?>
+                                        <?php
+                                        $percentage = min(($estimatedTotalCost / $generalMonthlyBudget) * 100, 100);
+                                        $isOverBudget = $estimatedTotalCost > $generalMonthlyBudget;
+                                        ?>
+                                        <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                                            <div class="h-2 rounded-full transition-all duration-500 
+                                        <?php echo $isOverBudget ? 'bg-gradient-to-r from-red-400 to-red-600' : 'bg-gradient-to-r from-emerald-400 to-emerald-600'; ?>"
+                                                style="width: <?php echo min($percentage, 100); ?>%">
+                                            </div>
+                                        </div>
+                                        <p class="text-xs text-gray-500">
+                                            <?php echo number_format($percentage, 1); ?>% del presupuesto general
+                                        </p>
+                                    <?php endif; ?>
+                                </div>
+
+                                <!-- Estado del presupuesto -->
+                                <?php if ($generalMonthlyBudget > 0 && $estimatedTotalCost > $generalMonthlyBudget): ?>
+                                    <div class="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-700 text-xs font-semibold rounded-full border border-red-200">
+                                        <i class="fas fa-exclamation-triangle mr-1.5"></i>
+                                        Excede presupuesto por $<?php echo number_format($estimatedTotalCost - $generalMonthlyBudget, 0, ',', '.'); ?>
+                                    </div>
+                                <?php elseif ($generalMonthlyBudget > 0): ?>
+                                    <div class="inline-flex items-center px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">
+                                        <i class="fas fa-check-circle mr-1.5"></i>
+                                        Dentro del presupuesto
+                                    </div>
+                                <?php else: ?>
+                                    <div class="inline-flex items-center px-3 py-1.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full border border-amber-200">
+                                        <i class="fas fa-info-circle mr-1.5"></i>
+                                        Define un presupuesto general
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tarjeta de Presupuesto General y Ocio -->
+                <div class="space-y-4">
+
+                    <!-- Presupuesto General -->
+                    <div class="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-5 border border-gray-100 group">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <div class="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-xl mr-3 group-hover:bg-blue-200 transition-colors">
+                                    <i class="fas fa-wallet text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                                        Presupuesto Restante de Ocio
+                                    </h3>
+                                    <p class="text-xl font-bold <?php echo ($estimatedTotalCost > $generalMonthlyBudget && $generalMonthlyBudget > 0) ? 'text-red-600' : 'text-blue-700'; ?>">
+                                        $<?php echo number_format($generalMonthlyBudget, 0, ',', '.'); ?>
+                                        <span class="text-sm font-medium text-gray-500">CLP</span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <?php if ($generalMonthlyBudget > 0): ?>
+                                <?php $remaining = $generalMonthlyBudget - $estimatedTotalCost; ?>
+                                <div class="text-right">
+                                    <p class="text-xs text-gray-500 mb-1">Restante</p>
+                                    <p class="text-lg font-bold <?php echo $remaining >= 0 ? 'text-emerald-600' : 'text-red-600'; ?>">
+                                        $<?php echo number_format(abs($remaining), 0, ',', '.'); ?>
+                                    </p>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <!-- Presupuesto de Ocio -->
+                    <div class="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-5 border border-gray-100 group">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <div class="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-xl mr-3 group-hover:bg-purple-200 transition-colors">
+                                    <i class="fas fa-gamepad text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">
+                                        Presupuesto General de Ocio
+                                    </h3>
+                                    <p class="text-xl font-bold text-purple-700">
+                                        $<?php echo number_format($leisureBudget, 0, ',', '.'); ?>
+                                        <span class="text-sm font-medium text-gray-500">CLP</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <div class="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 mb-8 overflow-hidden animate-slide-up">
@@ -508,13 +675,7 @@ $lastUpdate = $lastUpdateTimestamp > 0 ? date('d/m/Y H:i', $lastUpdateTimestamp)
             </div>
         </form>
 
-        <div class="mb-6">
-            <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                <i class="fas fa-boxes mr-3 text-blue-500"></i>
-                Mis Productos
-                <span class="ml-3 text-lg font-normal text-gray-500">(<?php echo count($products); ?>)</span>
-            </h2>
-        </div>
+
 
         <?php if (empty($products)): ?>
             <?php if (!empty($searchName) || $categoryId > 0): ?>
