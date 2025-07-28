@@ -29,10 +29,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $currency = $_POST['currency'] ?? 'USD';
             $url = $_POST['url'] ?? '';
 
+            // --- NUEVO CAMPO: Motivo de la Compra ---
+            $purchaseReason = $_POST['purchase_reason'] ?? null;
+            if (!empty($purchaseReason)) {
+                $purchaseReason = htmlspecialchars(trim($purchaseReason)); // Limpiar el texto
+            } else {
+                $purchaseReason = null; // Asegurar NULL si está vacío
+            }
+
             if (!empty($name)) {
                 $pdo = getDBConnection();
-                $stmt = $pdo->prepare("INSERT INTO list_products (name, description, price, currency, product_url, created_at, necessity_level) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                if ($stmt->execute([$name, $description, $price, $currency, $url, $fechaHoraActual, $necessityLevel])) {
+                $stmt = $pdo->prepare("INSERT INTO list_products (name, description, price, currency, product_url, created_at, necessity_level, purchase_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                if ($stmt->execute([$name, $description, $price, $currency, $url, $fechaHoraActual, $necessityLevel, $purchaseReason])) {
                     echo json_encode(['success' => true, 'message' => 'Producto agregado correctamente']);
                 } else {
                     echo json_encode(['success' => false, 'message' => 'Error al agregar producto']);
@@ -658,6 +666,27 @@ $generalMonthlyBudget = $ocio_restante;
                     </div>
 
                     <div class="space-y-2">
+                        <label for="purchase_reason_add" class="block text-sm font-semibold text-gray-700">
+                            <i class="fas fa-question-circle mr-2 text-pink-500"></i>
+                            Motivo de la Compra
+                        </label>
+                        <select id="purchase_reason_add" name="purchase_reason"
+                            class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-pink-100 focus:border-pink-500 transition-all duration-300">
+                            <option value="" selected>Selecciona un motivo</option>
+                            <option value="Necesidad Real">Necesidad Real</option>
+                            <option value="Reemplazo">Reemplazo</option>
+                            <option value="Por Impulso">Por Impulso</option>
+                            <option value="Evento Específico">Para un Evento Específico</option>
+                            <option value="Deseo">Deseo / Capricho</option>
+                            <option value="Promoción">Por Promoción / Oferta</option>
+                            <option value="Curiosidad">Curiosidad / Probar</option>
+                        </select>
+                    </div>
+
+
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="space-y-2">
                         <label class="block text-sm font-semibold text-gray-700">
                             <i class="fas fa-coins mr-2 text-yellow-500"></i>
                             Moneda
@@ -670,17 +699,6 @@ $generalMonthlyBudget = $ocio_restante;
                         </select>
                     </div>
 
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div class="space-y-2 mb-8">
-                        <label class="block text-sm font-semibold text-gray-700">
-                            <i class="fas fa-align-left mr-2 text-gray-500"></i>
-                            Descripción
-                        </label>
-                        <textarea name="description" id="description" rows="3"
-                            class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-gray-100 focus:border-gray-500 transition-all duration-300 placeholder-gray-400 resize-none"
-                            placeholder="Descripción opcional del producto..."></textarea>
-                    </div>
                     <div class="space-y-2">
                         <label class="block text-sm font-semibold text-gray-700">
                             <i class="fas fa-link mr-2 text-purple-500"></i>
@@ -691,7 +709,15 @@ $generalMonthlyBudget = $ocio_restante;
                             placeholder="https://ejemplo.com/producto">
                     </div>
                 </div>
-
+                <div class="space-y-2 mb-8">
+                    <label class="block text-sm font-semibold text-gray-700">
+                        <i class="fas fa-align-left mr-2 text-gray-500"></i>
+                        Descripción
+                    </label>
+                    <textarea name="description" id="description" rows="3"
+                        class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-gray-100 focus:border-gray-500 transition-all duration-300 placeholder-gray-400 resize-none"
+                        placeholder="Descripción opcional del producto..."></textarea>
+                </div>
                 <button type="submit"
                     class="w-full md:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2">
                     <i class="fas fa-plus"></i>
@@ -786,7 +812,7 @@ $generalMonthlyBudget = $ocio_restante;
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                 <?php foreach ($products as $product): ?>
                     <div class="product-card bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 overflow-hidden card-hover animate-fade-in" data-product-id="<?php echo $product['id']; ?>">
-                        <div class="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden group">
+                        <div class="transition-all duration-300 overflow-hidden group">
                             <!-- Header con gradiente sutil -->
                             <div class="bg-gradient-to-br from-gray-50 to-white p-6 border-b border-gray-100">
                                 <div class="flex items-start justify-between mb-3">
@@ -833,6 +859,7 @@ $generalMonthlyBudget = $ocio_restante;
                                         </div>
                                     </div>
 
+
                                     <!-- Moneda destacada -->
                                     <div class="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white text-lg font-bold shadow-lg">
                                         <?php echo $product['currency']; ?>
@@ -844,6 +871,12 @@ $generalMonthlyBudget = $ocio_restante;
                                     <p class="text-gray-600 text-sm leading-relaxed line-clamp-2 mb-0">
                                         <?php echo htmlspecialchars($product['description']); ?>
                                     </p>
+                                <?php endif; ?>
+                                <?php if (!empty($product['purchase_reason'])): ?>
+                                    <div class="text-sm text-gray-700 bg-gray-50 p-4 rounded-lg border-l-4 border-indigo-400 mt-2">
+                                        <p class="font-semibold mb-1">Motivo de la compra:</p>
+                                        <p class="text-gray-600 italic">"<?php echo htmlspecialchars($product['purchase_reason']); ?>"</p>
+                                    </div>
                                 <?php endif; ?>
                             </div>
 
@@ -1003,6 +1036,8 @@ $generalMonthlyBudget = $ocio_restante;
             const form = priceFormattedInput.closest('form'); // Obtén el formulario padre
             const addProductForm = document.getElementById('add-product-form');
             const addNecessityLevelSelect = document.getElementById('necessity_level_add'); // Nuevo
+            const purchaseReasonAdd = document.getElementById('purchase_reason_add').value;
+
 
             document.querySelectorAll('.mark-purchased-btn').forEach(button => {
                 button.addEventListener('click', function() {

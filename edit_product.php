@@ -18,7 +18,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cleanPrice = preg_replace('/[^0-9]/', '', $priceRaw);
     // Convierte a entero. Si tu DB permite decimales, usa floatval().
     // Aquí asumimos enteros para CLP.
-
+    $purchaseReason = $_POST['purchase_reason'] ?? null;
+    if (!empty($purchaseReason)) {
+        $purchaseReason = htmlspecialchars(trim($purchaseReason)); // Limpiar el texto
+    } else {
+        $purchaseReason = null; // Asegurar NULL si está vacío
+    }
     // Nuevos campos
     // Valor por defecto si no se envía
     // Asegurarse de que necessityLevel sea un entero y esté dentro del rango esperado (1-5)
@@ -53,9 +58,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $pdo = getDBConnection(); // Asegúrate de que esta función está definida en config.php
 
-    $stmt = $pdo->prepare("UPDATE list_products SET name = ?, description = ?, price = ?, currency = ?, product_url = ?, updated_at = ?, necessity_level = ? WHERE id = ?");
+    $stmt = $pdo->prepare("UPDATE list_products SET name = ?, description = ?, price = ?, currency = ?, product_url = ?, updated_at = ?, necessity_level = ?, purchase_reason = ? WHERE id = ?");
 
-    if ($stmt->execute([$name, $description, $price, $currency, $url, $fechaHoraActual, $necessityLevel, $productId])) {
+    if ($stmt->execute([$name, $description, $price, $currency, $url, $fechaHoraActual, $necessityLevel, $purchaseReason, $productId])) {
         echo json_encode(['success' => true, 'message' => 'Producto actualizado correctamente.']);
     } else {
         echo json_encode(['success' => false, 'message' => 'Error al actualizar el producto.']);
@@ -295,6 +300,24 @@ if ($productId > 0) {
                                 <?php endif; ?>
                             </select>
                         </div>
+
+                        <div class="form-group">
+                            <label for="purchase_reason">Motivo de la Compra</label>
+                            <select id="purchase_reason" name="purchase_reason"
+                                class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-pink-100 focus:border-pink-500 transition-all duration-300">
+                                <option value="">Selecciona un motivo</option>
+                                <option value="Necesidad Real" <?php echo (isset($product['purchase_reason']) && $product['purchase_reason'] == 'Necesidad Real') ? 'selected' : ''; ?>>Necesidad Real</option>
+                                <option value="Reemplazo" <?php echo (isset($product['purchase_reason']) && $product['purchase_reason'] == 'Reemplazo') ? 'selected' : ''; ?>>Reemplazo</option>
+                                <option value="Por Impulso" <?php echo (isset($product['purchase_reason']) && $product['purchase_reason'] == 'Por Impulso') ? 'selected' : ''; ?>>Por Impulso</option>
+                                <option value="Evento Específico" <?php echo (isset($product['purchase_reason']) && $product['purchase_reason'] == 'Evento Específico') ? 'selected' : ''; ?>>Para un Evento Específico</option>
+                                <option value="Deseo" <?php echo (isset($product['purchase_reason']) && $product['purchase_reason'] == 'Deseo') ? 'selected' : ''; ?>>Deseo / Capricho</option>
+                                <option value="Promoción" <?php echo (isset($product['purchase_reason']) && $product['purchase_reason'] == 'Promoción') ? 'selected' : ''; ?>>Por Promoción / Oferta</option>
+                                <option value="Curiosidad" <?php echo (isset($product['purchase_reason']) && $product['purchase_reason'] == 'Curiosidad') ? 'selected' : ''; ?>>Curiosidad / Probar</option>
+                            </select>
+                        </div>
+
+                    </div>
+                    <div class="form-row">
                         <div class="form-group">
                             <label for="currency">Moneda</label>
                             <select id="currency" name="currency">
@@ -303,19 +326,16 @@ if ($productId > 0) {
                                 <option value="EUR" <?php echo ($product['currency'] == 'EUR') ? 'selected' : ''; ?>>EUR - Euro</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="form-row">
-
-                        <div class="form-group full-width">
+                        <div class="form-group">
                             <label for="url">URL del Producto</label>
                             <input type="url" id="url" name="url" placeholder="https://..." value="<?php echo htmlspecialchars($product['product_url']); ?>">
                         </div>
-
-                        <div class="form-group full-width">
-                            <label for="description">Descripción</label>
-                            <textarea id="description" name="description" rows="3" placeholder="Descripción opcional del producto"><?php echo htmlspecialchars($product['description']); ?></textarea>
-                        </div>
                     </div>
+                    <div class="form-group full-width">
+                        <label for="description">Descripción</label>
+                        <textarea id="description" name="description" rows="3" placeholder="Descripción opcional del producto"><?php echo htmlspecialchars($product['description']); ?></textarea>
+                    </div>
+
                     <button type="submit" class="btn btn-primary">Guardar Cambios</button>
                     <a href="index.php" class="btn btn-secondary">Cancelar</a>
                 </form>
