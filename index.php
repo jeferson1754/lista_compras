@@ -63,7 +63,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // --- 1. Obtener y sanitizar parámetros de filtro y ordenamiento ---
 $searchName = isset($_GET['search_name']) ? trim($_GET['search_name']) : '';
 $categoryId = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0; // 0 for 'all categories' or no filter
-$sortBy = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'created_at-desc'; // Default sort to 'Más Reciente'
+// --- 3. Construir la cláusula ORDER BY dinámicamente ---
+
 
 // --- 2. Construir la cláusula WHERE dinámicamente ---
 $whereClauses = [];
@@ -88,9 +89,9 @@ $where = '';
 if (count($whereClauses) > 0) {
     $where = ' WHERE ' . implode(' AND ', $whereClauses);
 }
+$sortBy = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'necessity_level-desc'; // CAMBIO IMPORTANTE: Nuevo valor por defecto
 
-// --- 3. Build the ORDER BY clause dynamically ---
-$orderBy = "ORDER BY created_at DESC"; // Default order
+$orderBy = "";
 switch ($sortBy) {
     case 'name-asc':
         $orderBy = "ORDER BY name ASC";
@@ -104,7 +105,13 @@ switch ($sortBy) {
     case 'price-desc':
         $orderBy = "ORDER BY price DESC";
         break;
-    case 'created_at-desc': // Explicitly selected 'Más Reciente'
+    case 'created_at-desc':
+        $orderBy = "ORDER BY created_at DESC";
+        break;
+    case 'necessity_level-desc': // Nuevo: Ordenar por nivel de necesidad (de mayor a menor)
+        // Agregamos created_at como segundo criterio para desempate si los niveles son iguales
+        $orderBy = "ORDER BY necessity_level DESC, created_at DESC";
+        break;
     default: // Fallback for invalid sort_by values
         $orderBy = "ORDER BY created_at DESC";
         break;
@@ -485,6 +492,8 @@ $lastUpdate = $lastUpdateTimestamp > 0 ? date('d/m/Y H:i', $lastUpdateTimestamp)
 
                     <select id="sort-select" name="sort_by"
                         class="px-4 py-3 bg-white/80 backdrop-blur-lg border border-white/20 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300">
+                        <option value="necessity_level-desc" <?php echo ($sortBy === 'necessity_level-desc') ? 'selected' : ''; ?>>Prioridad (Necesidad)</option>
+
                         <option value="created_at-desc" <?php echo ($sortBy === 'created_at-desc') ? 'selected' : ''; ?>>Más Reciente</option>
                         <option value="name-asc" <?php echo ($sortBy === 'name-asc') ? 'selected' : ''; ?>>Nombre A-Z</option>
                         <option value="name-desc" <?php echo ($sortBy === 'name-desc') ? 'selected' : ''; ?>>Nombre Z-A</option>
