@@ -55,4 +55,4 @@ $result_detalles_ocio = $resultados['detalles'];
 $anterior_total_ocio = $resultados['anterior_total'];
 $ocio = $total_ingresos * 0.3;
 
-$ocio_restante = $ocio - $total_ocio;
+$ocio_restante = $balance_mes_actual * 0.3;
