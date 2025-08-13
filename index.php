@@ -41,16 +41,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $purchaseReason = $purchaseReasonOption;
             }
 
-            if (!empty($name)) {
+            // $name, $description, $price, $currency, $url, $fechaHoraActual, $necessityLevel, $purchaseReason
+
+            // --- 1. Validación de Entrada (Más Robusta) ---
+            // Validamos los datos más importantes antes de tocar la base de datos.
+            if (empty(trim($name))) {
+                http_response_code(400); // Bad Request
+                echo json_encode(['success' => false, 'message' => 'El nombre del producto es requerido.']);
+                exit;
+            }
+            if (!isset($price) || !is_numeric($price) || $price < 0) {
+                http_response_code(400); // Bad Request
+                echo json_encode(['success' => false, 'message' => 'Se requiere un precio válido.']);
+                exit;
+            }
+
+
+            // --- 2. Operación de Base de Datos con Transacción ---
+            $pdo = null; // Inicializamos la variable pdo
+            try {
+                // Obtenemos la conexión a la BD
                 $pdo = getDBConnection();
-                $stmt = $pdo->prepare("INSERT INTO list_products (name, description, price, currency, product_url, created_at, necessity_level, purchase_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                if ($stmt->execute([$name, $description, $price, $currency, $url, $fechaHoraActual, $necessityLevel, $purchaseReason])) {
-                    echo json_encode(['success' => true, 'message' => 'Producto agregado correctamente']);
-                } else {
-                    echo json_encode(['success' => false, 'message' => 'Error al agregar producto']);
+
+                // Inicia la transacción
+                $pdo->beginTransaction();
+
+                // ---- PRIMERA INSERCIÓN: list_products ----
+                $sql_product = "INSERT INTO list_products (name, description, price, currency, product_url, created_at, necessity_level, purchase_reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                $stmt_product = $pdo->prepare($sql_product);
+                $stmt_product->execute([$name, $description, $price, $currency, $url, $fechaHoraActual, $necessityLevel, $purchaseReason]);
+
+                // Obtenemos el ID del producto que acabamos de insertar
+                $lastProductId = $pdo->lastInsertId();
+
+                // ---- SEGUNDA INSERCIÓN: product_price ----
+                $sql_history = "INSERT INTO product_price (product_id, price, currency, purchased_at) VALUES (?, ?, ?, ?)";
+                $stmt_history = $pdo->prepare($sql_history);
+                // Nota: Es buena idea guardar todos los datos relevantes en el historial.
+                $stmt_history->execute([$lastProductId, $price, $currency, $fechaHoraActual]);
+
+                // Si todo fue bien, se confirman los cambios
+                $pdo->commit();
+
+                // Enviamos una respuesta de éxito
+                http_response_code(201); // 201 Created - es el código correcto para una creación exitosa
+                echo json_encode(['success' => true, 'message' => 'Producto agregado correctamente.']);
+            } catch (PDOException $e) {
+                // Si algo falló, revertimos TODOS los cambios
+                if ($pdo && $pdo->inTransaction()) {
+                    $pdo->rollBack();
                 }
-            } else {
-                echo json_encode(['success' => false, 'message' => 'El nombre del producto es requerido']);
+
+                // Enviamos una respuesta de error genérica al usuario
+                http_response_code(500); // Internal Server Error
+                echo json_encode(['success' => false, 'message' => 'Ocurrió un error en el servidor al guardar el producto.']);
+
+                // Opcional pero MUY RECOMENDADO: Guarda el error real en un archivo de logs para que tú puedas depurarlo.
+                // error_log("Error al agregar producto: " . $e->getMessage());
             }
             exit;
 

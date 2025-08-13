@@ -11,6 +11,7 @@ require_once 'config.php';
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -160,22 +161,44 @@ require_once 'config.php';
                     <p class="text-gray-600 text-lg ml-18">Analiza tus patrones de compra y toma mejores decisiones financieras</p>
                 </div>
 
+                <?php
+                $total_items_comprados = 0;
+                $total_gastado = 0.00;
+
+                try {
+
+                    $pdo = getDBConnection();
+                    // La consulta SQL que nos proporcionaste
+                    $sql = "SELECT COUNT(*) AS total_items_comprados, SUM(purchased_price) AS total_gastado FROM purchase_history;";
+
+                    // Preparamos y ejecutamos la consulta
+                    $stmt = $pdo->query($sql);
+
+                    // Obtenemos la única fila de resultados como un array asociativo
+                    $result = $stmt->fetch();
+
+                    // Verificamos si obtuvimos un resultado para evitar errores
+                    if ($result) {
+                        // Asignamos cada valor a su variable correspondiente
+                        $total_items_comprados = (int) $result['total_items_comprados'];
+                        $total_gastado = (float) $result['total_gastado'];
+                    }
+                } catch (\PDOException $e) {
+                    // Manejo de errores en caso de que la consulta falle
+                    die("Error al ejecutar la consulta: " . $e->getMessage());
+                }
+
+                ?>
                 <!-- Estadísticas rápidas -->
                 <div class="hidden lg:flex space-x-4">
                     <div class="text-center bg-white rounded-xl p-4 shadow-lg border border-gray-100">
-                        <div class="text-2xl font-bold text-orange-600"><?php echo count($purchaseRecords ?? []); ?></div>
+                        <div class="text-2xl font-bold text-orange-600"><?php echo $total_items_comprados; ?></div>
                         <div class="text-xs text-gray-500 uppercase tracking-wide">Compras Total</div>
                     </div>
                     <div class="text-center bg-white rounded-xl p-4 shadow-lg border border-gray-100">
                         <div class="text-2xl font-bold text-green-600">
                             $<?php
-                                $totalSpent = 0;
-                                if (!empty($purchaseRecords)) {
-                                    foreach ($purchaseRecords as $item) {
-                                        $totalSpent += $item['purchased_price'];
-                                    }
-                                }
-                                echo number_format($totalSpent, 0, ',', '.');
+                                echo number_format($total_gastado, 0, ',', '.');
                                 ?>
                         </div>
                         <div class="text-xs text-gray-500 uppercase tracking-wide">Gasto Total</div>
@@ -316,17 +339,7 @@ require_once 'config.php';
                     <h3 class="text-2xl font-bold text-gray-900">Tus Compras Realizadas</h3>
                 </div>
 
-                <!-- Filtros y controles -->
-                <div class="flex items-center space-x-3">
-                    <button class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-xl transition-colors">
-                        <i class="fas fa-filter mr-2"></i>
-                        Filtrar
-                    </button>
-                    <button class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-medium rounded-xl transition-all shadow-lg">
-                        <i class="fas fa-download mr-2"></i>
-                        Exportar
-                    </button>
-                </div>
+
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -405,7 +418,18 @@ require_once 'config.php';
 
                             <!-- Acciones -->
                             <div class="mt-4 pt-4 border-t border-gray-100">
-                                <button class="w-full inline-flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors">
+                                <button
+                                    class="open-details-modal-btn w-full inline-flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors cursor-pointer"
+                                    data-id="<?php echo htmlspecialchars($item['product_id']); ?>"
+                                    data-name="<?php echo htmlspecialchars($item['name']); ?>"
+                                    data-description="<?php echo htmlspecialchars($item['description']); ?>"
+                                    data-price="$<?php echo number_format($item['purchased_price'], 0, ',', '.'); ?> <?php echo htmlspecialchars($item['purchased_currency']); ?>"
+                                    data-necessity-text="<?php echo htmlspecialchars($necessityTextMap[$necessityLevel] ?? 'N/A'); ?>"
+                                    data-necessity-icon="<?php echo htmlspecialchars($necessityConfig['icon']); ?>"
+                                    data-necessity-class="<?php echo htmlspecialchars($necessityConfig['text']); ?>"
+                                    data-date="<?php echo date('d/m/Y \a \l\a\s H:i', strtotime($item['purchased_at'])); ?>"
+                                    data-reason="<?php echo htmlspecialchars($item['purchase_reason']); ?>">
+
                                     <i class="fas fa-eye mr-2"></i>
                                     Ver detalles
                                 </button>
@@ -416,6 +440,211 @@ require_once 'config.php';
             </div>
         </div>
     </div>
+
+    <div id="details-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 hidden transition-opacity duration-300">
+
+        <div id="modal-content" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto transform transition-transform duration-300 scale-95">
+
+            <div class="flex justify-between items-center p-5 border-b border-gray-200">
+                <h3 id="modal-title" class="text-xl font-bold text-gray-800">Detalles de la Compra</h3>
+                <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <p id="modal-description" class="text-gray-600"></p>
+
+                <div class="bg-green-50 rounded-xl p-4 border border-green-100 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-green-700 font-medium">Precio de compra</p>
+                        <p id="modal-price" class="text-2xl font-bold text-green-800"></p>
+                    </div>
+                    <div id="modal-necessity" class="text-sm font-semibold px-3 py-1 rounded-full flex items-center gap-2">
+                        <i id="modal-necessity-icon"></i>
+                        <span id="modal-necessity-text"></span>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <h4 class="text-md font-semibold text-gray-700 mb-2">📈 Historial de Precios</h4>
+
+                    <div id="price-history-list" class="space-y-2 text-sm max-h-40 overflow-y-auto pr-2">
+                        <p id="price-list-info" class="text-gray-500">Cargando historial...</p>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50/70 border border-gray-200 rounded-xl p-4">
+                    <dl class="space-y-3">
+
+                        <div class="flex items-center">
+                            <dt class="flex items-center w-28">
+                                <i class="fas fa-calendar-alt w-5 mr-2 text-gray-400"></i>
+                                <span class="font-semibold text-gray-600">Fecha:</span>
+                            </dt>
+                            <dd id="modal-date" class="text-gray-800"></dd>
+                        </div>
+
+                        <div class="flex items-start">
+                            <dt class="flex items-start w-28 pt-0.5">
+                                <i class="fas fa-comment-alt w-5 mr-2 text-gray-400"></i>
+                                <span class="font-semibold text-gray-600">Motivo:</span>
+                            </dt>
+                            <dd id="modal-reason" class="flex-1 text-gray-800"></dd>
+                        </div>
+
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elementos del Modal
+            const modal = document.getElementById('details-modal');
+            const modalContent = document.getElementById('modal-content');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+
+            // Todos los botones que abren el modal
+            const openModalBtns = document.querySelectorAll('.open-details-modal-btn');
+            const priceHistoryList = document.getElementById('price-history-list');
+
+
+            // Función para abrir el modal
+            const openModal = async (data) => {
+                // Llenar el modal con los datos del botón presionado
+                document.getElementById('modal-title').textContent = data.name;
+                document.getElementById('modal-description').textContent = data.description;
+                document.getElementById('modal-price').textContent = data.price;
+                document.getElementById('modal-date').textContent = data.date;
+                document.getElementById('modal-reason').textContent = data.reason;
+
+                // Rellenar la "píldora" de necesidad
+                const necessityPill = document.getElementById('modal-necessity');
+                const necessityIcon = document.getElementById('modal-necessity-icon');
+                const necessityText = document.getElementById('modal-necessity-text');
+
+                necessityText.textContent = data.necessityText;
+                necessityIcon.className = data.necessityIcon; // Reemplaza todas las clases del icono
+
+                // Limpiamos clases de color previas y añadimos la nueva
+                necessityPill.className = 'text-sm font-semibold px-3 py-1 rounded-full flex items-center gap-2 ' + data.necessityClass;
+
+                // Mostrar el modal con una transición suave
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.style.opacity = '1';
+                    modalContent.style.transform = 'scale(1)';
+                }, 10); // Un pequeño retardo para que la transición CSS se active
+
+                // --- Lógica para la lista de precios ---
+                // 1. Mostrar estado de carga
+                priceHistoryList.innerHTML = '<p class="text-gray-500">Cargando historial...</p>';
+
+                try {
+                    // 2. Petición al servidor para obtener los datos
+                    const response = await fetch(`get_price_history.php?id=${encodeURIComponent(data.id)}`);
+                    if (!response.ok) {
+                        throw new Error('Error en la respuesta del servidor.');
+                    }
+                    const historyData = await response.json();
+
+                    if (!historyData || historyData.length === 0) {
+                        priceHistoryList.innerHTML = '<p class="text-gray-500">No hay historial de precios para este producto.</p>';
+                        return;
+                    }
+
+                    // 3. Construir el HTML de la lista
+                    let listHtml = '';
+                    for (let i = 0; i < historyData.length; i++) {
+                        const item = historyData[i];
+                        const currentDate = new Date(item.purchased_at).toLocaleDateString('es-CL');
+                        const currentPrice = parseFloat(item.price);
+                        const formattedPrice = '$' + new Intl.NumberFormat('es-CL').format(currentPrice);
+
+                        let comparisonHtml = '';
+
+                        // Comparamos el precio actual con el siguiente en el array (que es el anterior en el tiempo)
+                        if (i < historyData.length - 1) {
+                            const previousPurchasePrice = parseFloat(historyData[i + 1].price);
+                            const difference = currentPrice - previousPurchasePrice;
+
+                            if (difference > 0) {
+                                comparisonHtml = `<span class="flex items-center text-red-500 font-semibold"><i class="fas fa-arrow-up mr-1"></i> Sube</span>`;
+                            } else if (difference < 0) {
+                                comparisonHtml = `<span class="flex items-center text-green-600 font-semibold"><i class="fas fa-arrow-down mr-1"></i> Baja</span>`;
+                            } else {
+                                comparisonHtml = `<span class="flex items-center text-gray-500 font-semibold"><i class="fas fa-equals mr-1"></i> Mantiene</span>`;
+                            }
+                        } else {
+                            // Es la última compra en la lista (la más antigua en el tiempo)
+                            comparisonHtml = `<span class="text-xs text-gray-500 font-medium">(Primera compra)</span>`;
+                        }
+
+                        listHtml += `
+                            <div class="flex justify-between items-center p-2 rounded-lg ${i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}">
+                                <div class="font-semibold text-gray-800">${formattedPrice}</div>
+                                <div class="text-gray-500">${currentDate}</div>
+                                <div>${comparisonHtml}</div>
+                            </div>
+                        `;
+                    }
+
+                    // 4. Inyectar la lista completa en el DOM
+                    priceHistoryList.innerHTML = listHtml;
+
+                } catch (error) {
+                    priceHistoryList.innerHTML = '<p class="text-red-500">No se pudo cargar el historial.</p>';
+                    console.error('Error fetching price history:', error);
+                }
+            };
+
+            // Función para cerrar el modal
+            const closeModal = () => {
+                modal.style.opacity = '0';
+                modalContent.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                }, 300); // Espera a que termine la transición de CSS
+            };
+
+            // Asignar evento a cada botón de "Ver detalles"
+            openModalBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Recolectar todos los datos desde los atributos data-*
+                    const data = {
+                        id: this.dataset.id,
+                        name: this.dataset.name,
+                        description: this.dataset.description,
+                        price: this.dataset.price,
+                        necessityText: this.dataset.necessityText,
+                        necessityIcon: this.dataset.necessityIcon,
+                        necessityClass: this.dataset.necessityClass,
+                        date: this.dataset.date,
+                        reason: this.dataset.reason,
+                    };
+                    openModal(data);
+                });
+            });
+
+            // Eventos para cerrar el modal
+            closeModalBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', function(event) {
+                // Cierra el modal solo si se hace clic en el fondo oscuro
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+
+            // Opcional: Cerrar el modal con la tecla 'Escape'
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+                    closeModal();
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

@@ -60,17 +60,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['success' => false, 'message' => 'Nivel de necesidad inválido.']);
         exit;
     }
+    try {
+        $pdo = getDBConnection();
+        // --- 1. INICIAR LA TRANSACCIÓN ---
+        // A partir de aquí, todas las operaciones son un "todo o nada".
+        $pdo->beginTransaction();
 
-    $pdo = getDBConnection(); // Asegúrate de que esta función está definida en config.php
+        // --- 2. Obtener el Precio Actual (ANTES de actualizar) ---
+        $sql_get_price = "SELECT price FROM list_products WHERE id = ?";
+        $stmt_get_price = $pdo->prepare($sql_get_price);
+        $stmt_get_price->execute([$productId]);
+        $currentProduct = $stmt_get_price->fetch();
 
-    $stmt = $pdo->prepare("UPDATE list_products SET name = ?, description = ?, price = ?, currency = ?, product_url = ?, updated_at = ?, necessity_level = ?, purchase_reason = ? WHERE id = ?");
+        if (!$currentProduct) {
+            // Lanza una excepción que será capturada por el bloque catch.
+            throw new Exception("El producto con ID $productId no fue encontrado.");
+        }
+        $oldPrice = $currentProduct['price'];
+        $newPrice = $price; // El nuevo precio que viene del formulario.
 
-    if ($stmt->execute([$name, $description, $price, $currency, $url, $fechaHoraActual, $necessityLevel, $purchaseReason, $productId])) {
+        // --- 3. Actualizar la Información Principal del Producto ---
+        $sql_update = "UPDATE list_products 
+                   SET name = ?, description = ?, price = ?, currency = ?, product_url = ?, 
+                       updated_at = ?, necessity_level = ?, purchase_reason = ? 
+                   WHERE id = ?";
+        $stmt_update = $pdo->prepare($sql_update);
+        // Ejecuta la actualización. Si falla, saltará al bloque catch.
+        $stmt_update->execute([$name, $description, $newPrice, $currency, $url, $fechaHoraActual, $necessityLevel, $purchaseReason, $productId]);
+
+        // --- 4. Condicional: Insertar en el Historial SOLO si el precio cambió ---
+        if ($newPrice !== $oldPrice) {
+            $sql_history = "INSERT INTO product_price (product_id, price, currency, purchased_at) VALUES (?, ?, ?, ?)";
+            $stmt_history = $pdo->prepare($sql_history);
+            // Ejecuta la inserción. Si falla, saltará al bloque catch.
+            $stmt_history->execute([$productId, $newPrice, $currency, $fechaHoraActual]);
+        }
+
+        // --- 5. Si TODO lo anterior tuvo éxito, Confirmar los Cambios ---
+        // Solo en este punto los cambios se guardan permanentemente en la BD.
+        $pdo->commit();
+
+        // --- 6. Enviar la Respuesta de Éxito AL FINAL ---
+        http_response_code(200); // OK
         echo json_encode(['success' => true, 'message' => 'Producto actualizado correctamente.']);
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Error al actualizar el producto.']);
+        exit();
+    } catch (Exception $e) {
+        // --- 7. Si ALGO falló en el bloque 'try', Revertir TODOS los cambios ---
+        // Se asegura de que haya una transacción activa antes de intentar revertirla.
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        // Enviar una respuesta de error al usuario.
+        http_response_code(500); // Internal Server Error
+        // Es mejor no mostrar el error específico al usuario por seguridad.
+        echo json_encode(['success' => false, 'message' => 'Ocurrió un error al actualizar el producto.']);
+
+        // Opcional: Guarda el error real en un log para que tú lo veas.
+        // error_log("Error de actualización: " . $e->getMessage());
     }
-    exit;
 }
 
 // --- PHP: Obtener datos del producto para mostrar en el formulario (GET) ---
@@ -110,6 +158,19 @@ $savedReason = $product['purchase_reason'] ?? '';
 // Es personalizado si NO está en nuestra lista de opciones predefinidas.
 $isCustomReason = !empty($savedReason) && !in_array($savedReason, $predefinedReasons);
 
+
+// --- NUEVO: Cargar el Historial de Precios del Producto ---
+$price_history = [];
+try {
+    $stmt_history = $pdo->prepare(
+        "SELECT price, purchased_at FROM product_price WHERE product_id = ? ORDER BY purchased_at DESC"
+    );
+    $stmt_history->execute([$product['id']]);
+    $price_history = $stmt_history->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    // Manejar el error si es necesario, pero no detener la página
+    // error_log("No se pudo cargar el historial de precios: " . $e->getMessage());
+}
 ?>
 
 <!DOCTYPE html>
@@ -278,44 +339,43 @@ $isCustomReason = !empty($savedReason) && !in_array($savedReason, $predefinedRea
 </head>
 
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>✏️ Editar Producto</h1>
-            <p>Modifica los detalles de tu producto</p>
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="mb-8">
+            <h1 class="text-4xl font-bold text-gray-800">✏️ Editar Producto</h1>
+            <p class="text-lg text-gray-600 mt-1">Modifica los detalles y consulta su historial de precios.</p>
         </div>
 
-        <div class="content">
-            <div id="alert-container"></div>
+        <div id="alert-container" class="mb-6"></div>
 
-            <div class="edit-form">
-                <h3 style="margin-bottom: 20px; color: #495057;">Detalles del Producto</h3>
-                <form id="edit-product-form">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <div class="lg:col-span-2 bg-white rounded-2xl shadow-lg border border-gray-200">
+                <form id="edit-product-form" class="p-8 space-y-6">
                     <input type="hidden" id="product_id" name="product_id" value="<?php echo htmlspecialchars($product['id']); ?>">
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="name">Nombre del Producto *</label>
-                            <input type="text" id="name" class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 placeholder-gray-400" name="name" value="<?php echo htmlspecialchars($product['name']); ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="price_formatted">Precio</label>
-                            <input type="text" id="price_formatted"
-                                class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-300 placeholder-gray-400"
-                                placeholder="$0" inputmode="numeric" autocomplete="off"
-                                value="<?php
-                                        // Formatear el precio al cargar la página si es CLP
-                                        if ($product['currency'] === 'CLP') {
-                                            echo number_format($product['price'], 0, ',', '.');
-                                        } else {
-                                            echo htmlspecialchars($product['price']);
-                                        }
-                                        ?>">
+                    <div>
+                        <label for="name" class="block text-sm font-semibold text-gray-700 mb-1">Nombre del Producto *</label>
+                        <input type="text" id="name" name="name" class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-500 transition" value="<?php echo htmlspecialchars($product['name']); ?>" required>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="price_formatted" class="block text-sm font-semibold text-gray-700 mb-1">Precio</label>
+                            <input type="text" id="price_formatted" class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-400 focus:border-green-500 transition" value="<?php echo number_format($product['price'], 0, ',', '.'); ?>" placeholder="$0">
                             <input type="hidden" name="price_raw" id="price_raw" value="<?php echo htmlspecialchars($product['price']); ?>">
                         </div>
+                        <div>
+                            <label for="currency" class="block text-sm font-semibold text-gray-700 mb-1">Moneda</label>
+                            <select id="currency" name="currency" class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-500 transition">
+                                <option value="CLP" <?php echo ($product['currency'] == 'CLP') ? 'selected' : ''; ?>>CLP - Peso Chileno</option>
+                                <option value="USD" <?php echo ($product['currency'] == 'USD') ? 'selected' : ''; ?>>USD - Dólar</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="necessity_level">Nivel de Necesidad</label>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="necessity_level" class="block text-sm font-semibold text-gray-700 mb-1">Nivel de Necesidad</label>
                             <select id="necessity_level" name="necessity_level"
                                 class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300">
                                 <option value="5" <?php echo (isset($product['necessity_level']) && $product['necessity_level'] == 5) ? 'selected' : ''; ?>>5 - ¡Esencial!</option>
@@ -328,53 +388,89 @@ $isCustomReason = !empty($savedReason) && !in_array($savedReason, $predefinedRea
                                 <?php endif; ?>
                             </select>
                         </div>
+                        <div>
+                            <label for="url" class="block text-sm font-semibold text-gray-700 mb-1">URL del Producto (Opcional)</label>
+                            <input type="url" id="url" name="url" class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-500 transition" value="<?php echo htmlspecialchars($product['product_url']); ?>" placeholder="https://...">
+                        </div>
+                    </div>
 
-                        <div class="form-group mb-4">
-                            <label for="reason-select" class="block text-sm font-medium text-gray-700 mb-1">Motivo de la Compra</label>
+                    <div>
+                        <label for="reason-select" class="block text-sm font-semibold text-gray-700 mb-1">Motivo de la Compra</label>
+                        <select id="reason-select" name="purchase_reason_option" class="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:ring-4 focus:ring-pink-100 focus:border-pink-500 transition-all duration-300">
+                            <option value="">Selecciona un motivo</option>
 
-                            <select id="reason-select" name="purchase_reason_option" class="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl focus:ring-4 focus:ring-pink-100 focus:border-pink-500 transition-all duration-300">
-                                <option value="">Selecciona un motivo</option>
-
-                                <?php foreach ($predefinedReasons as $reason): ?>
-                                    <option value="<?php echo htmlspecialchars($reason); ?>" <?php echo ($savedReason === $reason) ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($reason); ?>
-                                    </option>
-                                <?php endforeach; ?>
-
-                                <option value="custom" <?php echo $isCustomReason ? 'selected' : ''; ?>>
-                                    Otro (especificar)...
+                            <?php foreach ($predefinedReasons as $reason): ?>
+                                <option value="<?php echo htmlspecialchars($reason); ?>" <?php echo ($savedReason === $reason) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($reason); ?>
                                 </option>
-                            </select>
+                            <?php endforeach; ?>
 
-                            <div id="custom-reason-wrapper" class="mt-2 <?php echo $isCustomReason ? '' : 'hidden'; ?>">
-                                <label for="custom-reason-textarea" class="sr-only">Motivo personalizado</label>
-                                <textarea id="custom-reason-textarea" name="purchase_reason_custom" rows="3" class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Describe el motivo específico aquí..."><?php echo $isCustomReason ? htmlspecialchars($savedReason) : ''; ?></textarea>
-                            </div>
+                            <option value="custom" <?php echo $isCustomReason ? 'selected' : ''; ?>>
+                                Otro (especificar)...
+                            </option>
+                        </select>
+                        <div id="custom-reason-wrapper" class="mt-2 <?php echo $isCustomReason ? '' : 'hidden'; ?>">
+                            <textarea id="custom-reason-textarea" name="purchase_reason_custom" rows="2" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-xl" placeholder="Describe el motivo..."><?php echo $isCustomReason ? htmlspecialchars($savedReason) : ''; ?></textarea>
                         </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="currency">Moneda</label>
-                            <select id="currency" name="currency" class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300">
-                                <option value="CLP" <?php echo ($product['currency'] == 'CLP') ? 'selected' : ''; ?>>CLP - Peso Chileno</option>
-                                <option value="USD" <?php echo ($product['currency'] == 'USD') ? 'selected' : ''; ?>>USD - Dólar</option>
-                                <option value="EUR" <?php echo ($product['currency'] == 'EUR') ? 'selected' : ''; ?>>EUR - Euro</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="url">URL del Producto</label>
-                            <input type="url" id="url" name="url" placeholder="https://..." value="<?php echo htmlspecialchars($product['product_url']); ?>" class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 placeholder-gray-400">
-                        </div>
-                    </div>
-                    <div class="form-group full-width">
-                        <label for="description">Descripción</label>
-                        <textarea id="description" name="description" class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-gray-100 focus:border-gray-500 transition-all duration-300 placeholder-gray-400 resize-none" rows="3" placeholder="Descripción opcional del producto"><?php echo htmlspecialchars($product['description']); ?></textarea>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
-                    <a href="index.php" class="btn btn-secondary">Cancelar</a>
+                    <div>
+                        <label for="description" class="block text-sm font-semibold text-gray-700 mb-1">Descripción (Opcional)</label>
+                        <textarea id="description" name="description" class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl resize-y" rows="3"><?php echo htmlspecialchars($product['description']); ?></textarea>
+                    </div>
+
+                    <div class="pt-6 border-t border-gray-200 flex items-center gap-4">
+                        <button type="submit" class="w-full sm:w-auto bg-blue-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2">
+                            <i class="fas fa-save"></i>
+                            Guardar Cambios
+                        </button>
+                        <a href="index.php" class="text-gray-600 font-semibold hover:text-gray-800 transition">Cancelar</a>
+                    </div>
                 </form>
             </div>
+
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-3">
+                        <i class="fas fa-chart-line text-blue-500"></i>
+                        Historial de Precios
+                    </h3>
+                    <div id="price-history-list" class="space-y-2 text-sm max-h-96 overflow-y-auto pr-2">
+                        <?php if (empty($price_history)): ?>
+                            <p class="text-gray-500 p-3 text-center">No hay historial de precios para este producto.</p>
+                        <?php else: ?>
+                            <?php foreach ($price_history as $index => $item): ?>
+                                <?php
+                                $currentPrice = (float) $item['price'];
+                                $comparisonHtml = '';
+
+                                // Comparamos con el siguiente en el array (el anterior en el tiempo)
+                                if (isset($price_history[$index + 1])) {
+                                    $previousPrice = (float) $price_history[$index + 1]['price'];
+                                    if ($currentPrice > $previousPrice) {
+                                        $comparisonHtml = '<span class="flex items-center text-xs text-red-500 font-semibold"><i class="fas fa-arrow-up mr-1"></i> Sube</span>';
+                                    } elseif ($currentPrice < $previousPrice) {
+                                        $comparisonHtml = '<span class="flex items-center text-xs text-green-600 font-semibold"><i class="fas fa-arrow-down mr-1"></i> Baja</span>';
+                                    } else {
+                                        $comparisonHtml = '<span class="flex items-center text-xs text-gray-500 font-semibold"><i class="fas fa-equals mr-1"></i> Mantiene</span>';
+                                    }
+                                } else {
+                                    $comparisonHtml = '<span class="text-xs text-gray-400 font-medium">(Primera compra)</span>';
+                                }
+                                ?>
+                                <div class="flex justify-between items-center p-3 rounded-lg <?php echo $index % 2 === 0 ? 'bg-gray-50' : ''; ?>">
+                                    <div>
+                                        <p class="font-bold text-gray-900">$<?php echo number_format($currentPrice, 0, ',', '.'); ?></p>
+                                        <p class="text-gray-500"><?php echo date('d/m/Y', strtotime($item['purchased_at'])); ?></p>
+                                    </div>
+                                    <div><?php echo $comparisonHtml; ?></div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -527,8 +623,8 @@ $isCustomReason = !empty($savedReason) && !in_array($savedReason, $predefinedRea
                     .then(data => {
                         if (data.success) {
                             showAlert(data.message, 'success');
-                            // Opcional: recargar la página o redirigir después de un éxito
-                            setTimeout(() => window.location.href = 'index.php', 1500);
+                            // Opcional: recargar la página después de un éxito para ver los cambios
+                            setTimeout(() => window.location.reload(), 1500);
                         } else {
                             showAlert(data.message, 'error');
                         }
