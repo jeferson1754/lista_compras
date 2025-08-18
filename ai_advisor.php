@@ -5,7 +5,7 @@ require_once 'config.php';
 // --- LÓGICA PHP PARA CARGAR LOS PRODUCTOS ---
 // Esta es una simulación. Debes reemplazarla con tu propia consulta a la base de datos.
 try {
-    $stmt = getDBConnection()->query("SELECT id, name, price, necessity_level, purchase_reason FROM list_products ORDER BY necessity_level DESC;");
+    $stmt = getDBConnection()->query("SELECT id, name, price, necessity_level, purchase_reason FROM list_products WHERE is_purchased = FALSE ORDER BY necessity_level DESC;");
     $products = $stmt->fetchAll();
 
     // -- Fin de los datos de ejemplo --
@@ -69,7 +69,7 @@ function getNecessityText(int $level): string
                     <?php else: ?>
                         <?php foreach ($products as $product): ?>
                             <label for="product-<?php echo $product['id']; ?>" class="flex items-center p-4 bg-gray-50 border border-gray-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-all cursor-pointer">
-                                <input type="checkbox" id="product-<?php echo $product['id']; ?>" class="h-6 w-6 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 product-checkbox" checked
+                                <input type="checkbox" id="product-<?php echo $product['id']; ?>" class="h-6 w-6 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 product-checkbox"
                                     data-name="<?php echo htmlspecialchars($product['name']); ?>"
                                     data-price="<?php echo $product['price']; ?>"
                                     data-necessity="<?php echo getNecessityText($product['necessity_level']); ?>"
