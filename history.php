@@ -417,10 +417,10 @@ require_once 'config.php';
                             </div>
 
                             <!-- Acciones -->
-                            <div class="mt-4 pt-4 border-t border-gray-100">
+                            <div class="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-3">
+
                                 <button
-                                    class="open-details-modal-btn w-full inline-flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors cursor-pointer"
-                                    data-id="<?php echo htmlspecialchars($item['product_id']); ?>"
+                                    class="open-details-modal-btn w-full inline-flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
                                     data-name="<?php echo htmlspecialchars($item['name']); ?>"
                                     data-description="<?php echo htmlspecialchars($item['description']); ?>"
                                     data-price="$<?php echo number_format($item['purchased_price'], 0, ',', '.'); ?> <?php echo htmlspecialchars($item['purchased_currency']); ?>"
@@ -429,9 +429,20 @@ require_once 'config.php';
                                     data-necessity-class="<?php echo htmlspecialchars($necessityConfig['text']); ?>"
                                     data-date="<?php echo date('d/m/Y \a \l\a\s H:i', strtotime($item['purchased_at'])); ?>"
                                     data-reason="<?php echo htmlspecialchars($item['purchase_reason']); ?>">
-
                                     <i class="fas fa-eye mr-2"></i>
-                                    Ver detalles
+                                    Detalles
+                                </button>
+
+                                <button
+                                    class="rebuy-btn w-full inline-flex items-center justify-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-lg transition-all duration-300 transform hover:scale-105"
+                                    data-history-id="<?php echo htmlspecialchars($item['id']); ?>"
+                                    data-name="<?php echo htmlspecialchars($item['name']); ?>"
+                                    data-price="<?php echo htmlspecialchars($item['purchased_price']); ?>"
+                                    data-currency="<?php echo htmlspecialchars($item['purchased_currency']); ?>"
+                                    data-description="<?php echo htmlspecialchars($item['description']); ?>"
+                                    data-url="<?php echo htmlspecialchars($item['product_url']); ?>">
+                                    <i class="fas fa-cart-plus mr-2"></i>
+                                    <span>Comprar</span>
                                 </button>
                             </div>
                         </div>
@@ -643,6 +654,61 @@ require_once 'config.php';
                     closeModal();
                 }
             });
+
+
+            // --- LÓGICA PARA EL BOTÓN "VOLVER A COMPRAR" ---
+            const rebuyButtons = document.querySelectorAll('.rebuy-btn');
+
+            rebuyButtons.forEach(btn => {
+                btn.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    const button = this;
+                    const originalText = button.querySelector('span').innerHTML;
+                    const icon = button.querySelector('i');
+
+                    // Estado de "Cargando"
+                    button.disabled = true;
+                    button.querySelector('span').textContent = 'Añadiendo...';
+
+                    // 1. Recolectar los datos del botón
+                    const formData = new FormData();
+                    formData.append('name', button.dataset.name);
+                    formData.append('history_id', button.dataset.historyId);
+                    formData.append('price', button.dataset.price);
+                    formData.append('currency', button.dataset.currency);
+                    formData.append('description', button.dataset.description);
+                    formData.append('url', button.dataset.url);
+
+                    // 2. Enviar los datos al servidor con fetch
+                    fetch('rebuy_product.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // 3. Éxito: Cambiar el estado del botón permanentemente
+                                button.querySelector('span').textContent = '¡Añadido!';
+                                icon.className = 'fas fa-check mr-2';
+                                button.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                                button.classList.add('bg-green-500', 'cursor-not-allowed');
+                            } else {
+                                // 4. Error: Revertir el botón y mostrar alerta
+                                button.disabled = false;
+                                button.querySelector('span').textContent = originalText;
+                                alert('Error: ' + data.message);
+                            }
+                        })
+                        .catch(error => {
+                            // Error de red
+                            console.error('Error:', error);
+                            button.disabled = false;
+                            button.querySelector('span').textContent = originalText;
+                            alert('Ocurrió un error de conexión.');
+                        });
+                });
+            });
+
         });
     </script>
 </body>

@@ -160,17 +160,37 @@ $isCustomReason = !empty($savedReason) && !in_array($savedReason, $predefinedRea
 
 
 // --- NUEVO: Cargar el Historial de Precios del Producto ---
+// 1. Cargar el historial de cambios de precio del PRODUCTO ACTUAL
+// Esta consulta no cambia. Siempre se refiere al producto que estás editando.
 $price_history = [];
 try {
     $stmt_history = $pdo->prepare(
-        "SELECT price, purchased_at FROM product_price WHERE product_id = ? ORDER BY purchased_at DESC"
+        query: "SELECT price, purchased_at FROM product_price WHERE product_id = ? ORDER BY purchased_at DESC"
     );
-    $stmt_history->execute([$product['id']]);
+    $stmt_history->execute([$productId]);
     $price_history = $stmt_history->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
-    // Manejar el error si es necesario, pero no detener la página
     // error_log("No se pudo cargar el historial de precios: " . $e->getMessage());
 }
+
+
+// 2. Si es una recompra, obtener el PRECIO ORIGINAL de esa compra
+$original_purchase = null;
+if (!empty($product['rebuy_from_history_id'])) {
+    try {
+        // Buscamos en la tabla de historial de COMPRAS, no en la de precios
+        $stmt_original = $pdo->prepare(
+            "SELECT purchased_price, purchased_at FROM purchase_history WHERE id = ?"
+        );
+        $stmt_original->execute([$product['rebuy_from_history_id']]);
+        $original_purchase = $stmt_original->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        // error_log("No se pudo cargar la compra original: " . $e->getMessage());
+    }
+}
+
+
+
 ?>
 
 <!DOCTYPE html>
@@ -429,43 +449,30 @@ try {
                 </form>
             </div>
 
-            <div class="lg:col-span-1">
-                <div class="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-3">
-                        <i class="fas fa-chart-line text-blue-500"></i>
-                        Historial de Precios
-                    </h3>
-                    <div id="price-history-list" class="space-y-2 text-sm max-h-96 overflow-y-auto pr-2">
-                        <?php if (empty($price_history)): ?>
-                            <p class="text-gray-500 p-3 text-center">No hay historial de precios para este producto.</p>
-                        <?php else: ?>
-                            <?php foreach ($price_history as $index => $item): ?>
-                                <?php
-                                $currentPrice = (float) $item['price'];
-                                $comparisonHtml = '';
 
-                                // Comparamos con el siguiente en el array (el anterior en el tiempo)
-                                if (isset($price_history[$index + 1])) {
-                                    $previousPrice = (float) $price_history[$index + 1]['price'];
-                                    if ($currentPrice > $previousPrice) {
-                                        $comparisonHtml = '<span class="flex items-center text-xs text-red-500 font-semibold"><i class="fas fa-arrow-up mr-1"></i> Sube</span>';
-                                    } elseif ($currentPrice < $previousPrice) {
-                                        $comparisonHtml = '<span class="flex items-center text-xs text-green-600 font-semibold"><i class="fas fa-arrow-down mr-1"></i> Baja</span>';
-                                    } else {
-                                        $comparisonHtml = '<span class="flex items-center text-xs text-gray-500 font-semibold"><i class="fas fa-equals mr-1"></i> Mantiene</span>';
-                                    }
-                                } else {
-                                    $comparisonHtml = '<span class="text-xs text-gray-400 font-medium">(Primera compra)</span>';
-                                }
-                                ?>
-                                <div class="flex justify-between items-center p-3 rounded-lg <?php echo $index % 2 === 0 ? 'bg-gray-50' : ''; ?>">
-                                    <div>
-                                        <p class="font-bold text-gray-900">$<?php echo number_format($currentPrice, 0, ',', '.'); ?></p>
-                                        <p class="text-gray-500"><?php echo date('d/m/Y', strtotime($item['purchased_at'])); ?></p>
-                                    </div>
-                                    <div><?php echo $comparisonHtml; ?></div>
-                                </div>
-                            <?php endforeach; ?>
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-2xl shadow-lg ... p-6">
+
+                    <?php if ($original_purchase): ?>
+                        <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                            <h4 class="text-sm font-semibold text-blue-800">Recomprado de:</h4>
+                            <p class="text-xl font-bold text-blue-900 mt-1">
+                                $<?php echo number_format($original_purchase['purchased_price'], 0, ',', '.'); ?>
+                            </p>
+                            <p class="text-xs text-blue-600 mt-1">
+                                (Comprado el <?php echo date('d/m/Y', strtotime($original_purchase['purchased_at'])); ?>)
+                            </p>
+                        </div>
+                    <?php endif; ?>
+
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 ...">
+                        <i class="fas fa-chart-line ..."></i>
+                        Historial de Cambios
+                    </h3>
+                    <div id="price-history-list" class="space-y-2 ...">
+                        <?php if (empty($price_history)): ?>
+                            <p class="text-gray-500 ...">No hay cambios de precio registrados para este ítem.</p>
+                        <?php else: ?>
                         <?php endif; ?>
                     </div>
                 </div>
