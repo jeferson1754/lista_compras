@@ -173,7 +173,6 @@ try {
     // error_log("No se pudo cargar el historial de precios: " . $e->getMessage());
 }
 
-
 // 2. Si es una recompra, obtener el PRECIO ORIGINAL de esa compra
 $original_purchase = null;
 if (!empty($product['rebuy_from_history_id'])) {
@@ -473,7 +472,49 @@ if (!empty($product['rebuy_from_history_id'])) {
                         <?php if (empty($price_history)): ?>
                             <p class="text-gray-500 ...">No hay cambios de precio registrados para este ítem.</p>
                         <?php else: ?>
+                            <ul class="space-y-2">
+                                <?php
+                                $prev_price = null; // Guardará el último precio mostrado (más reciente)
+                                foreach ($price_history as $history_item):
+                                    $price = $history_item['price'];
+                                    $color = "text-gray-600";
+                                    $indicator = "";
+
+                                    if (!is_null($prev_price)) {
+                                        // Ojo: como estamos recorriendo del más reciente al más antiguo
+                                        // se debe invertir la lógica de comparación
+                                        if ($price > $prev_price) {
+                                            $color = "text-green-600"; // ahora es BAJÓ
+                                            $indicator = "↓ Bajó";
+                                        } elseif ($price < $prev_price) {
+                                            $color = "text-red-600"; // ahora es SUBIÓ
+                                            $indicator = "↑ Subió";
+                                        } else {
+                                            $color = "text-gray-600";
+                                            $indicator = "→ Igual";
+                                        }
+                                    }
+                                ?>
+                                    <li class="p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                                        <p class="text-sm <?php echo $color; ?>">
+                                            <strong>Precio:</strong> $<?php echo number_format($price, 0, ',', '.'); ?>
+                                            <?php if ($indicator): ?>
+                                                <span class="ml-2 font-semibold"><?php echo $indicator; ?></span>
+                                            <?php endif; ?>
+                                        </p>
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            (Cambió el <?php echo date('d/m/Y', strtotime($history_item['purchased_at'])); ?>)
+                                        </p>
+                                    </li>
+                                <?php
+                                    $prev_price = $price; // actualizamos referencia
+                                endforeach;
+                                ?>
+                            </ul>
                         <?php endif; ?>
+
+
+
                     </div>
                 </div>
             </div>
