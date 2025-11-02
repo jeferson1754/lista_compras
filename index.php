@@ -449,7 +449,7 @@ $generalMonthlyBudget = $ocio_restante;
         <a href="history.php"
             class="flex items-center bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-4 py-3 rounded-full shadow-2xl hover:shadow-xl transform hover:scale-105 transition-all duration-300 group">
             <i class="fas fa-history text-lg"></i>
-            <span class="font-medium hidden group-hover:inline-block transition-all">Ver Historial</span>
+            <span class="font-medium hidden group-hover:inline-block transition-all ml-2"> Ver Historial</span>
         </a>
     </div>
 

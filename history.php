@@ -12,6 +12,7 @@ require_once 'config.php';
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -226,7 +227,7 @@ require_once 'config.php';
                         <h4 class="text-lg font-bold text-gray-800">Motivos de Compra Recurrentes</h4>
                     </div>
 
-                    <div class="space-y-3">
+                    <div class="space-y-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
                         <?php
                         $reasonsAnalysis = getPurchaseReasonsAnalysis(getDBConnection());
                         if (empty($reasonsAnalysis)): ?>
@@ -245,7 +246,9 @@ require_once 'config.php';
                             ?>
                                 <div class="bg-white rounded-xl p-4 shadow-sm border border-blue-200">
                                     <div class="flex items-center justify-between mb-2">
-                                        <span class="font-medium text-gray-800"><?php echo htmlspecialchars($analysis['purchase_reason']); ?></span>
+                                        <span class="font-medium text-gray-800">
+                                            <?php echo htmlspecialchars($analysis['purchase_reason']); ?>
+                                        </span>
                                         <div class="flex items-center space-x-2">
                                             <span class="text-sm font-bold text-blue-600"><?php echo $analysis['count']; ?></span>
                                             <span class="text-xs text-gray-500">compras</span>
@@ -260,6 +263,28 @@ require_once 'config.php';
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
+
+                    <!-- Estilos para personalizar el scrollbar -->
+                    <style>
+                        .custom-scrollbar::-webkit-scrollbar {
+                            width: 8px;
+                        }
+
+                        .custom-scrollbar::-webkit-scrollbar-thumb {
+                            background: linear-gradient(to bottom, #60a5fa, #3b82f6);
+                            border-radius: 9999px;
+                        }
+
+                        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                            background: linear-gradient(to bottom, #2563eb, #1d4ed8);
+                        }
+
+                        .custom-scrollbar::-webkit-scrollbar-track {
+                            background: #f1f5f9;
+                            border-radius: 9999px;
+                        }
+                    </style>
+
                 </div>
 
                 <!-- Nivel de necesidad -->
@@ -421,6 +446,7 @@ require_once 'config.php';
 
                                 <button
                                     class="open-details-modal-btn w-full inline-flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                                    data-id="<?php echo htmlspecialchars($item['id']); ?>"
                                     data-name="<?php echo htmlspecialchars($item['name']); ?>"
                                     data-description="<?php echo htmlspecialchars($item['description']); ?>"
                                     data-price="$<?php echo number_format($item['purchased_price'], 0, ',', '.'); ?> <?php echo htmlspecialchars($item['purchased_currency']); ?>"
@@ -454,7 +480,9 @@ require_once 'config.php';
 
     <div id="details-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 hidden transition-opacity duration-300">
 
-        <div id="modal-content" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto transform transition-transform duration-300 scale-95">
+        <div id="modal-content" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto transform transition-transform duration-300 scale-95 max-h-[90vh] overflow-y-auto">
+            <!-- max-h-[90vh] limita la altura del modal al 90% de la ventana -->
+            <!-- overflow-y-auto permite el scroll vertical si el contenido excede esa altura -->
 
             <div class="flex justify-between items-center p-5 border-b border-gray-200">
                 <h3 id="modal-title" class="text-xl font-bold text-gray-800">Detalles de la Compra</h3>
@@ -483,6 +511,11 @@ require_once 'config.php';
                     <div id="price-history-list" class="space-y-2 text-sm max-h-40 overflow-y-auto pr-2">
                         <p id="price-list-info" class="text-gray-500">Cargando historial...</p>
                     </div>
+
+                    <div id="priceHistoryChart" class="mt-4" style="display: none;">
+                        <canvas id="priceTrendCanvas"></canvas>
+                    </div>
+
                 </div>
 
                 <div class="bg-gray-50/70 border border-gray-200 rounded-xl p-4">
@@ -526,7 +559,14 @@ require_once 'config.php';
             const openModal = async (data) => {
                 // Llenar el modal con los datos del botón presionado
                 document.getElementById('modal-title').textContent = data.name;
-                document.getElementById('modal-description').textContent = data.description;
+                let description = data.description || "";
+                let maxLength = 250;
+
+                if (description.length > maxLength) {
+                    description = description.substring(0, maxLength) + "...";
+                }
+
+                document.getElementById('modal-description').textContent = description;
                 document.getElementById('modal-price').textContent = data.price;
                 document.getElementById('modal-date').textContent = data.date;
                 document.getElementById('modal-reason').textContent = data.reason;
@@ -554,29 +594,36 @@ require_once 'config.php';
                 priceHistoryList.innerHTML = '<p class="text-gray-500">Cargando historial...</p>';
 
                 try {
-                    // 2. Petición al servidor para obtener los datos
-                    const response = await fetch(`get_price_history.php?id=${encodeURIComponent(data.id)}`);
+                    // 1️⃣ Petición al servidor para obtener los datos
+                    const response = await fetch(`get_price_history.php?id=${(data.id)}`);
                     if (!response.ok) {
                         throw new Error('Error en la respuesta del servidor.');
                     }
+
                     const historyData = await response.json();
 
                     if (!historyData || historyData.length === 0) {
                         priceHistoryList.innerHTML = '<p class="text-gray-500">No hay historial de precios para este producto.</p>';
+                        document.getElementById('priceHistoryChart').style.display = 'none';
                         return;
                     }
 
-                    // 3. Construir el HTML de la lista
+                    // 2️⃣ Construir HTML de la lista
                     let listHtml = '';
+                    const labels = [];
+                    const prices = [];
+
                     for (let i = 0; i < historyData.length; i++) {
                         const item = historyData[i];
                         const currentDate = new Date(item.purchased_at).toLocaleDateString('es-CL');
                         const currentPrice = parseFloat(item.price);
                         const formattedPrice = '$' + new Intl.NumberFormat('es-CL').format(currentPrice);
 
+                        labels.unshift(currentDate); // invertimos para que sea cronológico
+                        prices.unshift(currentPrice);
+
                         let comparisonHtml = '';
 
-                        // Comparamos el precio actual con el siguiente en el array (que es el anterior en el tiempo)
                         if (i < historyData.length - 1) {
                             const previousPurchasePrice = parseFloat(historyData[i + 1].price);
                             const difference = currentPrice - previousPurchasePrice;
@@ -589,26 +636,107 @@ require_once 'config.php';
                                 comparisonHtml = `<span class="flex items-center text-gray-500 font-semibold"><i class="fas fa-equals mr-1"></i> Mantiene</span>`;
                             }
                         } else {
-                            // Es la última compra en la lista (la más antigua en el tiempo)
                             comparisonHtml = `<span class="text-xs text-gray-500 font-medium">(Primera compra)</span>`;
                         }
 
                         listHtml += `
-                            <div class="flex justify-between items-center p-2 rounded-lg ${i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}">
-                                <div class="font-semibold text-gray-800">${formattedPrice}</div>
-                                <div class="text-gray-500">${currentDate}</div>
-                                <div>${comparisonHtml}</div>
-                            </div>
-                        `;
+            <div class="flex justify-between items-center p-2 rounded-lg ${i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}">
+                <div class="font-semibold text-gray-800">${formattedPrice}</div>
+                <div class="text-gray-500">${currentDate}</div>
+                <div>${comparisonHtml}</div>
+            </div>
+        `;
                     }
 
-                    // 4. Inyectar la lista completa en el DOM
                     priceHistoryList.innerHTML = listHtml;
+                    // Preparar arrays de colores dinámicos
+                    const borderColors = [];
+                    const backgroundColors = [];
+
+                    for (let i = 0; i < prices.length; i++) {
+                        if (i === 0) {
+                            // Primera compra
+                            backgroundColors.push('rgba(107, 114, 128, 0.2)');
+                        } else {
+                            const diff = prices[i] - prices[i - 1];
+                            if (diff > 0) {
+                                borderColors.push('#ef4444'); // rojo
+                                backgroundColors.push('rgba(239, 68, 68, 0.2)');
+                            } else if (diff < 0) {
+                                borderColors.push('#16a34a'); // verde
+                                backgroundColors.push('rgba(22, 163, 74, 0.2)');
+                            } else {
+                                borderColors.push('#6b7280'); // gris
+                                backgroundColors.push('rgba(107, 114, 128, 0.2)');
+                            }
+                        }
+                    }
+
+                    // Mostrar gráfico de evolución
+                    const chartContainer = document.getElementById('priceHistoryChart');
+                    chartContainer.style.display = 'block';
+                    chartContainer.innerHTML = '<canvas id="priceTrendCanvas"></canvas>';
+
+                    const ctx = document.getElementById('priceTrendCanvas').getContext('2d');
+
+                    // Destruir gráfico previo si existe
+                    if (window.priceTrendChart) {
+                        window.priceTrendChart.destroy();
+                    }
+
+                    window.priceTrendChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Precio del producto',
+                                data: prices,
+                                borderColor: borderColors, // Colores dinámicos por punto
+                                backgroundColor: backgroundColors, // Colores dinámicos por punto
+                                tension: 0.3,
+                                pointRadius: 5,
+                                pointHoverRadius: 7,
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Fecha'
+                                    }
+                                },
+                                y: {
+                                    title: {
+                                        display: true,
+                                        text: 'Precio (CLP)'
+                                    },
+                                    beginAtZero: false
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return '$' + new Intl.NumberFormat('es-CL').format(context.parsed.y);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+
 
                 } catch (error) {
                     priceHistoryList.innerHTML = '<p class="text-red-500">No se pudo cargar el historial.</p>';
                     console.error('Error fetching price history:', error);
                 }
+
             };
 
             // Función para cerrar el modal
