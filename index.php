@@ -288,6 +288,9 @@ $generalMonthlyBudget = $ocio_restante;
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -533,7 +536,7 @@ $generalMonthlyBudget = $ocio_restante;
 
 
             <!-- Panel de resumen financiero -->
-            <div class="grid md:grid-cols-2 gap-6">
+            <div class="grid md:grid-cols-2 gap-2">
 
                 <!-- Tarjeta de Gasto Estimado -->
                 <div class="relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group
@@ -546,7 +549,7 @@ $generalMonthlyBudget = $ocio_restante;
                     </div>
 
                     <!-- Contenido principal -->
-                    <div class="p-6 pl-8">
+                    <div class="p-4 pl-8">
                         <div class="flex items-start justify-between">
                             <div class="flex-1">
                                 <div class="flex items-center mb-3">
@@ -611,7 +614,7 @@ $generalMonthlyBudget = $ocio_restante;
                 <div class="space-y-4">
 
                     <!-- Presupuesto General -->
-                    <div class="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-5 border border-gray-100 group">
+                    <div class="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-4 border border-gray-100 group">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center">
                                 <div class="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-xl mr-3 group-hover:bg-blue-200 transition-colors">
@@ -641,7 +644,7 @@ $generalMonthlyBudget = $ocio_restante;
                     </div>
 
                     <!-- Presupuesto de Ocio -->
-                    <div class="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-5 border border-gray-100 group">
+                    <div class="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 p-4 border border-gray-100 group">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center">
                                 <div class="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-xl mr-3 group-hover:bg-purple-200 transition-colors">
@@ -664,126 +667,161 @@ $generalMonthlyBudget = $ocio_restante;
 
         </div>
 
-        <div class="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 mb-8 overflow-hidden animate-slide-up">
-            <div class="bg-gradient-to-r from-blue-500 to-purple-600 px-8 py-6">
-                <h2 class="text-2xl font-bold text-white flex items-center">
-                    <i class="fas fa-plus-circle mr-3"></i>
-                    Agregar Nuevo Producto
-                </h2>
-                <p class="text-blue-100 mt-1">Completa los datos del producto que deseas agregar</p>
-            </div>
-
-            <form id="add-product-form" class="p-8">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-
-                    <div class="space-y-2">
-                        <label class="block text-sm font-semibold text-gray-700">
-                            <i class="fas fa-tag mr-2 text-blue-500"></i>
-                            Nombre del Producto *
-                        </label>
-                        <input type="text" id="name" name="name" required
-                            class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 placeholder-gray-400"
-                            placeholder="Ej: iPhone 13, MacBook Pro...">
-                    </div>
-                    <div class="space-y-2">
-                        <label class="block text-sm font-semibold text-gray-700">
-                            <i class="fas fa-money-bill-wave mr-2 text-green-500"></i>
-                            Precio
-                        </label>
-                        <!-- Cambia el input a type="text" y agrega un id -->
-                        <input type="text" name="price_formatted" id="price_formatted"
-                            class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-300 placeholder-gray-400"
-                            placeholder="$0" inputmode="numeric" autocomplete="off">
-
-                        <input type="hidden" name="price" id="price_raw">
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div class="space-y-2">
-                        <label for="necessity_level_add" class="block text-sm font-semibold text-gray-700">
-                            <i class="fas fa-clipboard-check mr-2 text-indigo-500"></i>
-                            Nivel de Necesidad
-                        </label>
-                        <select id="necessity_level_add" name="necessity_level"
-                            class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300">
-                            <option value="" disabled selected>Selecciona un nivel</option>
-                            <option value="5">5 - ¡Esencial!</option>
-                            <option value="4">4 - Muy Necesario</option>
-                            <option value="3" selected>3 - Necesario</option>
-                            <option value="2">2 - Opcional</option>
-                            <option value="1">1 - Capricho</option>
-                        </select>
-                    </div>
-
-                    <div class="space-y-2">
-                        <label for="purchase_reason_add" class="block text-sm font-semibold text-gray-700">
-                            <i class="fas fa-question-circle mr-2 text-pink-500"></i>
-                            Motivo de la Compra
-                        </label>
-                        <select id="purchase_reason_add" name="purchase_reason"
-                            class="block w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-xl shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 transition-all duration-300">
-
-                            <option value="" selected disabled>Selecciona un motivo de compra</option>
-                            <option value="Reemplazo por producto dañado">Reemplazo por producto dañado</option>
-                            <option value="Se acabó y es de uso regular">Se acabó y es de uso regular</option>
-                            <option value="Mejora de un producto existente">Mejora de un producto existente</option>
-                            <option value="Para un proyecto o evento específico">Para un proyecto o evento específico</option>
-                            <option value="Oferta o descuento imperdible">Oferta o descuento imperdible</option>
-                            <option value="Por impulso">Compra por impulso</option>
-                            <option value="Deseo o capricho">Deseo o capricho</option>
-                            <option value="Curiosidad o prueba">Curiosidad o para probar</option>
-                            <option value="custom">Otro (especificar)...</option>
-                        </select>
-
-
-                        <div id="custom-reason-wrapper" class="mt-2 hidden">
-                            <label for="custom-reason-textarea" class="sr-only">Motivo personalizado</label>
-                            <textarea id="custom-reason-textarea" name="purchase_reason_custom" rows="3" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" placeholder="Describe el motivo específico aquí..."></textarea>
-                        </div>
-                    </div>
-
-
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div class="space-y-2">
-                        <label class="block text-sm font-semibold text-gray-700">
-                            <i class="fas fa-coins mr-2 text-yellow-500"></i>
-                            Moneda
-                        </label>
-                        <select id="currency" name="currency"
-                            class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-yellow-100 focus:border-yellow-500 transition-all duration-300">
-                            <option value="CLP">🇨🇱 CLP - Peso Chileno</option>
-                            <option value="USD">🇺🇸 USD - Dólar</option>
-                            <option value="EUR">🇪🇺 EUR - Euro</option>
-                        </select>
-                    </div>
-
-                    <div class="space-y-2">
-                        <label class="block text-sm font-semibold text-gray-700">
-                            <i class="fas fa-link mr-2 text-purple-500"></i>
-                            URL del Producto
-                        </label>
-                        <input type="url" id="url" name="url"
-                            class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all duration-300 placeholder-gray-400"
-                            placeholder="https://ejemplo.com/producto">
-                    </div>
-                </div>
-                <div class="space-y-2 mb-8">
-                    <label class="block text-sm font-semibold text-gray-700">
-                        <i class="fas fa-align-left mr-2 text-gray-500"></i>
-                        Descripción
-                    </label>
-                    <textarea name="description" id="description" rows="3"
-                        class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-gray-100 focus:border-gray-500 transition-all duration-300 placeholder-gray-400 resize-none"
-                        placeholder="Descripción opcional del producto..."></textarea>
-                </div>
-                <button type="submit"
-                    class="w-full md:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2">
-                    <i class="fas fa-plus"></i>
-                    <span>Agregar Producto</span>
-                </button>
-            </form>
+        <!-- Botón para abrir el modal -->
+        <!-- Contenedor centrado -->
+        <div class="text-center my-4">
+            <button type="button"
+                class="btn border-0 text-white fw-semibold px-5 py-3 rounded-4 shadow-lg 
+                 bg-gradient-to-r from-blue-500 to-purple-600 
+                 hover:from-blue-600 hover:to-purple-700 
+                 d-inline-flex align-items-center justify-content-center gap-2 
+                 transition-all duration-300 transform hover:scale-105"
+                data-bs-toggle="modal"
+                data-bs-target="#addProductModal">
+                <i class="fas fa-plus-circle fs-5"></i>
+                <span>Agregar Nuevo Producto</span>
+            </button>
         </div>
+
+
+        <!-- Modal Bootstrap -->
+        <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+
+                    <!-- Encabezado -->
+                    <div class="modal-header bg-gradient-to-r from-blue-500 to-purple-600">
+                        <h2 class="modal-title text-2xl font-bold text-white flex items-center" id="addProductModalLabel">
+                            <i class="fas fa-plus-circle mr-3"></i> Agregar Nuevo Producto
+                        </h2>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+
+                    <!-- Cuerpo del Modal -->
+                    <div class="modal-body">
+                        <p class="text-blue mb-4">Completa los datos del producto que deseas agregar</p>
+
+                        <form id="add-product-form">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
+                                <!-- Nombre -->
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-semibold text-gray-700">
+                                        <i class="fas fa-tag mr-2 text-blue-500"></i>
+                                        Nombre del Producto *
+                                    </label>
+                                    <input type="text" id="name" name="name" required
+                                        class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 placeholder-gray-400"
+                                        placeholder="Ej: iPhone 13, MacBook Pro...">
+                                </div>
+
+                                <!-- Precio -->
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-semibold text-gray-700">
+                                        <i class="fas fa-money-bill-wave mr-2 text-green-500"></i>
+                                        Precio
+                                    </label>
+                                    <input type="text" name="price_formatted" id="price_formatted"
+                                        class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-green-100 focus:border-green-500 transition-all duration-300 placeholder-gray-400"
+                                        placeholder="$0" inputmode="numeric" autocomplete="off">
+                                    <input type="hidden" name="price" id="price_raw">
+                                </div>
+                            </div>
+
+                            <!-- Nivel y motivo -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div class="space-y-2">
+                                    <label for="necessity_level_add" class="block text-sm font-semibold text-gray-700">
+                                        <i class="fas fa-clipboard-check mr-2 text-indigo-500"></i>
+                                        Nivel de Necesidad
+                                    </label>
+                                    <select id="necessity_level_add" name="necessity_level"
+                                        class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300">
+                                        <option value="" disabled selected>Selecciona un nivel</option>
+                                        <option value="5">5 - ¡Esencial!</option>
+                                        <option value="4">4 - Muy Necesario</option>
+                                        <option value="3" selected>3 - Necesario</option>
+                                        <option value="2">2 - Opcional</option>
+                                        <option value="1">1 - Capricho</option>
+                                    </select>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <label for="purchase_reason_add" class="block text-sm font-semibold text-gray-700">
+                                        <i class="fas fa-question-circle mr-2 text-pink-500"></i>
+                                        Motivo de la Compra
+                                    </label>
+                                    <select id="purchase_reason_add" name="purchase_reason"
+                                        class="block w-full px-4 py-3 bg-white/80 border border-gray-300 rounded-xl shadow-sm focus:border-indigo-500 focus:ring-4 focus:ring-indigo-200 transition-all duration-300">
+                                        <option value="" selected disabled>Selecciona un motivo de compra</option>
+                                        <option value="Reemplazo por producto dañado">Reemplazo por producto dañado</option>
+                                        <option value="Se acabó y es de uso regular">Se acabó y es de uso regular</option>
+                                        <option value="Mejora de un producto existente">Mejora de un producto existente</option>
+                                        <option value="Para un proyecto o evento específico">Para un proyecto o evento específico</option>
+                                        <option value="Oferta o descuento imperdible">Oferta o descuento imperdible</option>
+                                        <option value="Por impulso">Compra por impulso</option>
+                                        <option value="Deseo o capricho">Deseo o capricho</option>
+                                        <option value="Curiosidad o prueba">Curiosidad o para probar</option>
+                                        <option value="custom">Otro (especificar)...</option>
+                                    </select>
+
+                                    <div id="custom-reason-wrapper" class="mt-2 hidden">
+                                        <label for="custom-reason-textarea" class="sr-only">Motivo personalizado</label>
+                                        <textarea id="custom-reason-textarea" name="purchase_reason_custom" rows="3"
+                                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            placeholder="Describe el motivo específico aquí..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Moneda y URL -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-semibold text-gray-700">
+                                        <i class="fas fa-coins mr-2 text-yellow-500"></i> Moneda
+                                    </label>
+                                    <select id="currency" name="currency"
+                                        class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-yellow-100 focus:border-yellow-500 transition-all duration-300">
+                                        <option value="CLP">🇨🇱 CLP - Peso Chileno</option>
+                                        <option value="USD">🇺🇸 USD - Dólar</option>
+                                        <option value="EUR">🇪🇺 EUR - Euro</option>
+                                    </select>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-semibold text-gray-700">
+                                        <i class="fas fa-link mr-2 text-purple-500"></i> URL del Producto
+                                    </label>
+                                    <input type="url" id="url" name="url"
+                                        class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-100 focus:border-purple-500 transition-all duration-300 placeholder-gray-400"
+                                        placeholder="https://ejemplo.com/producto">
+                                </div>
+                            </div>
+
+                            <!-- Descripción -->
+                            <div class="space-y-2 mb-4">
+                                <label class="block text-sm font-semibold text-gray-700">
+                                    <i class="fas fa-align-left mr-2 text-gray-500"></i> Descripción
+                                </label>
+                                <textarea name="description" id="description" rows="3"
+                                    class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-gray-100 focus:border-gray-500 transition-all duration-300 placeholder-gray-400 resize-none"
+                                    placeholder="Descripción opcional del producto..."></textarea>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Pie del Modal -->
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" form="add-product-form"
+                            class="btn btn-primary bg-gradient-to-r from-blue-500 to-purple-600 border-0">
+                            <i class="fas fa-plus me-2"></i> Agregar Producto
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
 
         <form method="GET" action="">
             <div class="flex flex-col md:flex-row gap-4 mb-8">
