@@ -1077,11 +1077,15 @@ $generalMonthlyBudget = $ocio - $total_ocio;
 
                                     <!-- 🟡 ME HIZO FALTA -->
                                     <button
-                                        class="flex-1 btn-missing me-hizo-falta-btn"
+                                        class="flex-1 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700
+           text-white font-medium py-3 px-4 rounded-xl transition-all duration-300
+           flex items-center justify-center gap-2 shadow-lg hover:shadow-xl
+           transform hover:-translate-y-0.5 falta-btn"
                                         data-product-id="<?php echo $product['id']; ?>"
-                                        title="Este producto me hizo falta">
+                                        data-product-name="<?php echo htmlspecialchars($product['name']); ?>">
                                         <i class="fas fa-exclamation-circle"></i>
                                     </button>
+
 
 
                                     <button class="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 delete-product-btn"
@@ -1156,8 +1160,12 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                                 </button>
 
                                 <button
-                                    class="p-2 btn-missing-sm me-hizo-falta-btn"
+                                    class="p-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700
+           text-white rounded-lg transition-colors
+        
+            falta-btn"
                                     data-product-id="<?php echo $product['id']; ?>"
+                                    data-product-name="<?php echo htmlspecialchars($product['name']); ?>"
                                     title="Me hizo falta">
                                     <i class="fas fa-exclamation-circle"></i>
                                 </button>
@@ -1187,6 +1195,79 @@ $generalMonthlyBudget = $ocio - $total_ocio;
         </div>
     </div>
 
+    <div id="falta-modal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+
+            <!-- Header -->
+            <div class="flex justify-between items-center px-6 py-4 border-b">
+                <h3 class="text-lg font-bold text-gray-800">
+                    📌 Me hizo falta
+                </h3>
+                <button id="close-falta-modal" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 space-y-4">
+
+                <p class="text-sm text-gray-600">
+                    Producto:
+                    <span id="falta-product-name" class="font-semibold text-gray-800"></span>
+                </p>
+
+                <!-- Contexto -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">
+                        ¿En qué situación te hizo falta?
+                    </label>
+                    <input type="text" id="falta-contexto"
+                        class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-orange-300 focus:border-orange-400"
+                        placeholder="Ej: Trabajo, metro, estudio...">
+                </div>
+
+                <!-- Intensidad -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">
+                        ¿Qué tan importante fue?
+                    </label>
+                    <select id="falta-importancia"
+                        class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-orange-300">
+                        <option value="1">1 - Poco importante</option>
+                        <option value="2">2 - Molesto</option>
+                        <option value="3" selected>3 - Importante</option>
+                        <option value="4">4 - Muy importante</option>
+                        <option value="5">5 - Crítico</option>
+                    </select>
+                </div>
+
+                <!-- Fecha -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">
+                        Fecha
+                    </label>
+                    <input type="datetime-local" id="falta-fecha" value="<?php echo $fechaHoraActual ?>"
+                        class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-orange-300">
+                </div>
+
+            </div>
+
+            <!-- Footer -->
+            <div class="flex justify-end gap-3 px-6 py-4 border-t">
+                <button id="cancel-falta"
+                    class="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700">
+                    Cancelar
+                </button>
+                <button id="save-falta"
+                    class="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold">
+                    Guardar
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+
     <script>
         // Seleccionamos los elementos del DOM que necesitamos manipular
         const reasonSelect = document.getElementById('purchase_reason_add');
@@ -1206,6 +1287,60 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                 customReasonWrapper.classList.add('hidden');
                 // Quitamos el 'required' del textarea por si acaso
                 customReasonTextarea.removeAttribute('required');
+            }
+        });
+
+
+
+        let selectedProductId = null;
+
+        document.querySelectorAll('.falta-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectedProductId = btn.dataset.productId;
+                document.getElementById('falta-product-name').textContent = btn.dataset.productName;
+
+
+                document.getElementById('falta-modal').classList.remove('hidden');
+            });
+        });
+
+        // Cerrar modal
+        function closeFaltaModal() {
+            document.getElementById('falta-modal').classList.add('hidden');
+        }
+
+        document.getElementById('close-falta-modal').onclick = closeFaltaModal;
+        document.getElementById('cancel-falta').onclick = closeFaltaModal;
+
+
+        document.getElementById('save-falta').addEventListener('click', async () => {
+            const payload = {
+                product_id: selectedProductId,
+                contexto: document.getElementById('falta-contexto').value,
+                importance: document.getElementById('falta-importancia').value,
+                fecha: document.getElementById('falta-fecha').value
+            };
+
+            if (!payload.importance || !payload.fecha) {
+                alert('Completa los campos obligatorios');
+                return;
+            }
+
+            const response = await fetch('save_falta.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            console.log(result);
+
+            if (result.success) {
+                closeFaltaModal();
+            } else {
+                alert(result.message || 'Error al guardar');
             }
         });
     </script>
@@ -1243,6 +1378,8 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                     showAlert('Error al procesar la solicitud', 'error');
                 });
         });
+
+
 
         // Manejar eliminación de productos
         document.querySelectorAll('.delete-product-btn').forEach(btn => {
