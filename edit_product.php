@@ -139,6 +139,24 @@ if ($productId > 0) {
     exit;
 }
 
+// --- NUEVO: Cargar usos ANTES de la compra ---
+$product_usages = [];
+
+try {
+    $stmt_usages = $pdo->prepare(
+        "SELECT context, importance, used_at
+         FROM product_usages
+         WHERE product_id = ?
+           AND type = 'faltó'
+         ORDER BY used_at DESC"
+    );
+    $stmt_usages->execute([$productId]);
+    $product_usages = $stmt_usages->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    // error_log("Error cargando usos: " . $e->getMessage());
+}
+
+
 
 // La lista de tus motivos predefinidos. Tenerla en un array es más fácil de gestionar.
 $predefinedReasons = [
@@ -516,6 +534,65 @@ if (!empty($product['rebuy_from_history_id'])) {
 
 
                     </div>
+                    <div class="mt-6 bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">
+                            <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
+                            Usos antes de la compra
+                        </h3>
+
+                        <?php if (empty($product_usages)): ?>
+                            <p class="text-gray-500 text-sm">
+                                No se registraron faltas antes de la compra.
+                            </p>
+                        <?php else: ?>
+                            <ul class="space-y-3 max-h-64 overflow-y-auto pr-2">
+                                <?php foreach ($product_usages as $usage): ?>
+                                    <li class="p-4 bg-red-50 border border-red-200 rounded-xl">
+                                        <p class="text-sm text-gray-800">
+                                            <strong>Contexto:</strong>
+                                            <?php echo htmlspecialchars($usage['context'] ?: 'No especificado'); ?>
+                                        </p>
+                                        <div class="mt-2">
+                                            <div class="flex items-center justify-between text-xs text-gray-600 mb-1">
+                                                <span>Importancia</span>
+                                                <span><?php echo $usage['importance']; ?>/5</span>
+                                            </div>
+
+                                            <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                <div
+                                                    class="h-full rounded-full transition-all"
+                                                    style="
+                width: <?php echo ($usage['importance'] * 20); ?>%;
+                background-color:
+                <?php
+                                    echo match (true) {
+                                        $usage['importance'] >= 4 => '#ef4444', // rojo
+                                        $usage['importance'] == 3 => '#f59e0b', // amarillo
+                                        default => '#22c55e', // verde
+                                    };
+                ?>
+            ">
+                                                </div>
+                                            </div>
+                                        </div>
+
+
+                                        <p class="text-xs text-gray-500 mt-2">
+                                            <?php echo date('d/m/Y H:i', strtotime($usage['used_at'])); ?>
+                                        </p>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
+
+                            <div class="mt-4 text-sm text-gray-600 font-semibold">
+                                Total de faltas registradas:
+                                <span class="text-red-600">
+                                    <?php echo count($product_usages); ?>
+                                </span>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
                 </div>
             </div>
 
