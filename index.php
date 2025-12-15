@@ -275,7 +275,8 @@ $avgPrice = $totalProducts > 0 ? $totalValue / $totalProducts : 0;
 $lastUpdate = $lastUpdateTimestamp > 0 ? date('d/m/Y H:i', $lastUpdateTimestamp) : 'Nunca';
 $estimatedTotalCost = $totalValue;
 
-$generalMonthlyBudget = $ocio_restante;
+$generalMonthlyBudget = $ocio - $total_ocio;
+
 
 ?>
 <!DOCTYPE html>
@@ -411,6 +412,69 @@ $generalMonthlyBudget = $ocio_restante;
             100% {
                 left: 100%;
             }
+        }
+
+        /* Botón Me hizo falta */
+        .btn-missing {
+            background: linear-gradient(135deg, #facc15, #f59e0b);
+            color: #ffffff;
+            font-weight: 600;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.25);
+        }
+
+        .btn-missing:hover {
+            background: linear-gradient(135deg, #fbbf24, #d97706);
+            box-shadow: 0 12px 26px rgba(217, 119, 6, 0.35);
+            transform: translateY(-2px);
+        }
+
+        .btn-missing:active {
+            transform: scale(0.97);
+        }
+
+        /* Versión compacta (mobile / lista simple) */
+        .btn-missing-sm {
+            background: linear-gradient(135deg, #fde68a, #f59e0b);
+            color: #92400e;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            transition: background 0.2s ease;
+        }
+
+        .btn-missing-sm:hover {
+            background: linear-gradient(135deg, #fcd34d, #d97706);
+            color: #fff;
+        }
+
+        /* Por defecto (desktop) */
+        .product-full {
+            display: block;
+        }
+
+        .product-compact {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .product-full {
+                display: none;
+            }
+
+            .product-compact {
+                display: block;
+            }
+        }
+
+        .product-full,
+        .product-compact {
+            transition: opacity 0.3s ease, transform 0.3s ease;
         }
     </style>
 </head>
@@ -886,7 +950,7 @@ $generalMonthlyBudget = $ocio_restante;
         <?php else: ?>
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                 <?php foreach ($products as $product): ?>
-                    <div class="product-card bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 overflow-hidden card-hover animate-fade-in" data-product-id="<?php echo $product['id']; ?>">
+                    <div class="product-card product-full bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 overflow-hidden card-hover animate-fade-in" data-product-id="<?php echo $product['id']; ?>">
                         <div class="transition-all duration-300 overflow-hidden group">
                             <!-- Header con gradiente sutil -->
                             <div class="bg-gradient-to-br from-gray-50 to-white p-6 border-b border-gray-100">
@@ -1002,21 +1066,110 @@ $generalMonthlyBudget = $ocio_restante;
                                     <a href="edit_product.php?id=<?php echo $product['id']; ?>"
                                         class="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                                         <i class="fas fa-edit"></i>
-                                        <span class="hidden sm:inline">Editar</span>
+
                                     </a>
                                     <button class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 flex items-center justify-center space-x-2 mark-purchased-btn"
                                         data-product-id="<?php echo $product['id']; ?>"
                                         data-product-price="<?php echo htmlspecialchars($product['price']); ?>"
                                         data-product-currency="<?php echo htmlspecialchars($product['currency']); ?>">
-                                        <i class="fas fa-check"></i> Comprado
+                                        <i class="fas fa-check mr-2"></i> Comprado
                                     </button>
+
+                                    <!-- 🟡 ME HIZO FALTA -->
+                                    <button
+                                        class="flex-1 btn-missing me-hizo-falta-btn"
+                                        data-product-id="<?php echo $product['id']; ?>"
+                                        title="Este producto me hizo falta">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                    </button>
+
+
                                     <button class="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium py-3 px-4 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 delete-product-btn"
                                         data-product-id="<?php echo $product['id']; ?>">
                                         <i class="fas fa-trash"></i>
-                                        <span class="hidden sm:inline">Eliminar</span>
                                     </button>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Mostrar Celulares de forma diferente -->
+                    <div class="product-card product-compact bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow" data-product-id="<?php echo $product['id']; ?>">
+                        <div class="flex items-center p-4 gap-4">
+
+                            <!-- Información principal -->
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-lg font-semibold text-gray-900 truncate mb-1">
+                                    <?php echo htmlspecialchars($product['name']); ?>
+                                </h3>
+
+                                <?php
+                                $necessityLevel = $product['necessity_level'] ?? 0;
+                                $necessityText = [
+                                    1 => 'Capricho',
+                                    2 => 'Opcional',
+                                    3 => 'Necesario',
+                                    4 => 'Muy Necesario',
+                                    5 => '¡Esencial!'
+                                ];
+
+                                $levelConfig = [
+                                    1 => ['bg' => 'bg-red-100', 'text' => 'text-red-700'],
+                                    2 => ['bg' => 'bg-orange-100', 'text' => 'text-orange-700'],
+                                    3 => ['bg' => 'bg-yellow-100', 'text' => 'text-yellow-700'],
+                                    4 => ['bg' => 'bg-green-100', 'text' => 'text-green-700'],
+                                    5 => ['bg' => 'bg-purple-100', 'text' => 'text-purple-700']
+                                ];
+
+                                $config = $levelConfig[$necessityLevel] ?? ['bg' => 'bg-gray-100', 'text' => 'text-gray-700'];
+                                ?>
+
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?php echo $config['bg'] . ' ' . $config['text']; ?>">
+                                    <?php echo $necessityText[$necessityLevel] ?? 'N/A'; ?>
+                                </span>
+                            </div>
+
+                            <!-- Precio -->
+                            <div class="text-right">
+                                <div class="text-2xl font-bold text-gray-900">
+                                    $<?php echo number_format($product['price'], 0, ',', '.'); ?>
+                                </div>
+                                <div class="text-sm text-gray-500">
+                                    <?php echo $product['currency']; ?>
+                                </div>
+                            </div>
+
+                            <!-- Botones de acción -->
+                            <div class="flex gap-2">
+                                <a href="edit_product.php?id=<?php echo $product['id']; ?>"
+                                    class="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                                    title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+
+                                <button class="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors mark-purchased-btn"
+                                    data-product-id="<?php echo $product['id']; ?>"
+                                    data-product-price="<?php echo htmlspecialchars($product['price']); ?>"
+                                    data-product-currency="<?php echo htmlspecialchars($product['currency']); ?>"
+                                    title="Marcar como comprado">
+                                    <i class="fas fa-check"></i>
+                                </button>
+
+                                <button
+                                    class="p-2 btn-missing-sm me-hizo-falta-btn"
+                                    data-product-id="<?php echo $product['id']; ?>"
+                                    title="Me hizo falta">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                </button>
+
+
+                                <button class="p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors delete-product-btn"
+                                    data-product-id="<?php echo $product['id']; ?>"
+                                    title="Eliminar">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+
                         </div>
                     </div>
                 <?php endforeach; ?>
