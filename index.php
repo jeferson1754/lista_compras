@@ -1097,87 +1097,66 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                         </div>
                     </div>
 
-                    <!-- Mostrar Celulares de forma diferente -->
-                    <div class="product-card product-compact bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow" data-product-id="<?php echo $product['id']; ?>">
-                        <div class="flex items-center p-4 gap-4">
+                    <div class="product-card product-compact bg-white rounded-xl shadow-sm border border-gray-100 mb-3 active:scale-[0.98] transition-all" data-product-id="<?php echo $product['id']; ?>">
+                        <div class="p-4">
+                            <div class="flex justify-between items-start gap-2 mb-3">
+                                <div class="flex-1 min-w-0">
+                                    <h3 class="text-base font-bold text-gray-800 leading-tight mb-1 break-words">
+                                        <?php echo htmlspecialchars($product['name']); ?>
+                                    </h3>
 
-                            <!-- Información principal -->
-                            <div class="flex-1 min-w-0">
-                                <h3 class="text-lg font-semibold text-gray-900 truncate mb-1">
-                                    <?php echo htmlspecialchars($product['name']); ?>
-                                </h3>
+                                    <?php
+                                    $necessityLevel = $product['necessity_level'] ?? 0;
+                                    $necessityText = [1 => 'Capricho', 2 => 'Opcional', 3 => 'Necesario', 4 => 'Muy Necesario', 5 => '¡Esencial!'];
+                                    $levelConfig = [
+                                        1 => ['bg' => 'bg-red-50', 'text' => 'text-red-600'],
+                                        2 => ['bg' => 'bg-orange-50', 'text' => 'text-orange-600'],
+                                        3 => ['bg' => 'bg-yellow-50', 'text' => 'text-yellow-600'],
+                                        4 => ['bg' => 'bg-green-50', 'text' => 'text-green-600'],
+                                        5 => ['bg' => 'bg-purple-50', 'text' => 'text-purple-600']
+                                    ];
+                                    $config = $levelConfig[$necessityLevel] ?? ['bg' => 'bg-gray-50', 'text' => 'text-gray-600'];
+                                    ?>
 
-                                <?php
-                                $necessityLevel = $product['necessity_level'] ?? 0;
-                                $necessityText = [
-                                    1 => 'Capricho',
-                                    2 => 'Opcional',
-                                    3 => 'Necesario',
-                                    4 => 'Muy Necesario',
-                                    5 => '¡Esencial!'
-                                ];
-
-                                $levelConfig = [
-                                    1 => ['bg' => 'bg-red-100', 'text' => 'text-red-700'],
-                                    2 => ['bg' => 'bg-orange-100', 'text' => 'text-orange-700'],
-                                    3 => ['bg' => 'bg-yellow-100', 'text' => 'text-yellow-700'],
-                                    4 => ['bg' => 'bg-green-100', 'text' => 'text-green-700'],
-                                    5 => ['bg' => 'bg-purple-100', 'text' => 'text-purple-700']
-                                ];
-
-                                $config = $levelConfig[$necessityLevel] ?? ['bg' => 'bg-gray-100', 'text' => 'text-gray-700'];
-                                ?>
-
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?php echo $config['bg'] . ' ' . $config['text']; ?>">
-                                    <?php echo $necessityText[$necessityLevel] ?? 'N/A'; ?>
-                                </span>
-                            </div>
-
-                            <!-- Precio -->
-                            <div class="text-right">
-                                <div class="text-2xl font-bold text-gray-900">
-                                    $<?php echo number_format($product['price'], 0, ',', '.'); ?>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold <?php echo $config['bg'] . ' ' . $config['text']; ?>">
+                                        <?php echo $necessityText[$necessityLevel] ?? 'N/A'; ?>
+                                    </span>
                                 </div>
-                                <div class="text-sm text-gray-500">
-                                    <?php echo $product['currency']; ?>
+
+                                <div class="text-right flex-shrink-0">
+                                    <div class="text-lg font-black text-blue-600">
+                                        $<?php echo number_format($product['price'], 0, ',', '.'); ?>
+                                    </div>
+                                    <div class="text-[10px] text-gray-400 font-bold uppercase">
+                                        <?php echo $product['currency']; ?>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Botones de acción -->
-                            <div class="flex gap-2">
+                            <div class="grid grid-cols-4 gap-2 border-t border-blue-50 pt-3">
                                 <a href="edit_product.php?id=<?php echo $product['id']; ?>"
-                                    class="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                                    title="Editar">
+                                    class="flex items-center justify-center py-2.5 bg-blue-100 text-blue-600 rounded-lg active:bg-blue-100 active:text-blue-600 transition-colors">
                                     <i class="fas fa-edit"></i>
                                 </a>
 
-                                <button class="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors mark-purchased-btn"
+                                <button class="flex items-center justify-center py-2.5 bg-green-50 text-green-600 rounded-lg active:bg-green-600 active:text-white transition-colors mark-purchased-btn"
                                     data-product-id="<?php echo $product['id']; ?>"
                                     data-product-price="<?php echo htmlspecialchars($product['price']); ?>"
-                                    data-product-currency="<?php echo htmlspecialchars($product['currency']); ?>"
-                                    title="Marcar como comprado">
+                                    data-product-currency="<?php echo htmlspecialchars($product['currency']); ?>">
                                     <i class="fas fa-check"></i>
                                 </button>
 
-                                <button
-                                    class="p-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700
-           text-white rounded-lg transition-colors
-        
-            falta-btn"
+                                <button class="flex items-center justify-center py-2.5 bg-amber-50 text-amber-600 rounded-lg active:bg-amber-600 active:text-white transition-colors falta-btn"
                                     data-product-id="<?php echo $product['id']; ?>"
-                                    data-product-name="<?php echo htmlspecialchars($product['name']); ?>"
-                                    title="Me hizo falta">
+                                    data-product-name="<?php echo htmlspecialchars($product['name']); ?>">
                                     <i class="fas fa-exclamation-circle"></i>
                                 </button>
 
-
-                                <button class="p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors delete-product-btn"
-                                    data-product-id="<?php echo $product['id']; ?>"
-                                    title="Eliminar">
+                                <button class="flex items-center justify-center py-2.5 bg-red-50 text-red-500 rounded-lg active:bg-red-600 active:text-white transition-colors delete-product-btn"
+                                    data-product-id="<?php echo $product['id']; ?>">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
-
                         </div>
                     </div>
                 <?php endforeach; ?>
