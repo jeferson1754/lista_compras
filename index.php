@@ -214,44 +214,62 @@ $sortBy = isset($_GET['sort_by']) ? $_GET['sort_by'] : 'necessity_level-desc'; /
 $orderBy = "";
 switch ($sortBy) {
     case 'name-asc':
-        $orderBy = "ORDER BY name ASC";
+        $orderBy = "ORDER BY p.name ASC";
         break;
+
     case 'name-desc':
-        $orderBy = "ORDER BY name DESC";
+        $orderBy = "ORDER BY p.name DESC";
         break;
+
     case 'price-asc':
-        $orderBy = "ORDER BY price ASC";
+        $orderBy = "ORDER BY p.price ASC";
         break;
+
     case 'price-desc':
-        $orderBy = "ORDER BY price DESC";
+        $orderBy = "ORDER BY p.price DESC";
         break;
+
     case 'created_at-desc':
-        $orderBy = "ORDER BY created_at DESC";
+        $orderBy = "ORDER BY p.created_at DESC";
         break;
-    case 'necessity_level-desc': // Nuevo: Ordenar por nivel de necesidad (de mayor a menor)
-        // Agregamos created_at como segundo criterio para desempate si los niveles son iguales
-        $orderBy = "ORDER BY necessity_level DESC, created_at DESC";
+
+    case 'necessity_level-desc':
+        $orderBy = "ORDER BY p.necessity_level DESC, p.created_at DESC";
         break;
-    default: // Fallback for invalid sort_by values
-        $orderBy = "ORDER BY created_at DESC";
+
+    case 'use': // 🔴 FALTA USO
+        $orderBy = "ORDER BY `veces_usado` DESC, p.necessity_level DESC;";
+        break;
+
+    default:
+        $orderBy = "ORDER BY p.created_at DESC";
         break;
 }
+
 
 // --- 4. Get products from the database with filters and sorting ---
 $pdo = getDBConnection(); // Make sure this function returns a valid PDO object.
-$sql = "SELECT * FROM list_products" . $where . " AND is_purchased = FALSE " . $orderBy;
 
 // Si $where puede estar vacío:
-$finalWhere = " WHERE is_purchased = FALSE";
+$finalWhere = " WHERE p.is_purchased = FALSE";
 if (!empty($whereClauses)) {
-    $finalWhere = " WHERE " . implode(' AND ', $whereClauses) . " AND is_purchased = FALSE";
+    $finalWhere = " WHERE " . implode(' AND ', $whereClauses) . " AND p.is_purchased = FALSE";
 }
 
-$sql = "SELECT * FROM list_products" . $finalWhere . " " . $orderBy;
+$baseSql = "
+SELECT 
+    p.*,
+    COUNT(u.id) AS veces_usado
+FROM list_products p
+LEFT JOIN product_usages u ON u.product_id = p.id
+";
+
+$sql = $baseSql . $finalWhere . " GROUP BY p.id " . $orderBy;
 
 $stmt = $pdo->prepare($sql);
-$stmt->execute($queryParams); // Execute the query with bound parameters for safety
+$stmt->execute($queryParams);
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 $lastUpdateTimestamp = 0; // Para almacenar el timestamp más reciente de actualización
 // Calcular valor total y precio promedio en CLP
 $totalValue = 0;
@@ -276,6 +294,7 @@ $lastUpdate = $lastUpdateTimestamp > 0 ? date('d/m/Y H:i', $lastUpdateTimestamp)
 $estimatedTotalCost = $totalValue;
 
 $generalMonthlyBudget = $ocio - $total_ocio;
+
 
 
 ?>
@@ -905,6 +924,7 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                         <option value="necessity_level-desc" <?php echo ($sortBy === 'necessity_level-desc') ? 'selected' : ''; ?>>Prioridad (Necesidad)</option>
 
                         <option value="created_at-desc" <?php echo ($sortBy === 'created_at-desc') ? 'selected' : ''; ?>>Más Reciente</option>
+                        <option value="use" <?php echo ($sortBy === 'use') ? 'selected' : ''; ?>>Falta Uso</option>
                         <option value="name-asc" <?php echo ($sortBy === 'name-asc') ? 'selected' : ''; ?>>Nombre A-Z</option>
                         <option value="name-desc" <?php echo ($sortBy === 'name-desc') ? 'selected' : ''; ?>>Nombre Z-A</option>
                         <option value="price-asc" <?php echo ($sortBy === 'price-asc') ? 'selected' : ''; ?>>Precio Menor</option>
@@ -955,46 +975,64 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                             <!-- Header con gradiente sutil -->
                             <div class="bg-gradient-to-br from-gray-50 to-white p-6 border-b border-gray-100">
                                 <div class="flex items-start justify-between mb-3">
-                                    <div class="flex-1 mr-4">
-                                        <h3 class="text-xl font-bold text-gray-900 mb-2 group-hover:text-gray-700 transition-colors">
+                                    <div class="flex-1">
+                                        <?php
+                                        $useCount = (int) $product['veces_usado'];
+                                        $necessityLevel = $product['necessity_level'] ?? 0;
+
+                                        // Configuración de uso
+                                        $useConfig = [
+                                            'bg' => 'bg-gray-100',
+                                            'text' => 'text-gray-600',
+                                            'label' => 'Sin uso'
+                                        ];
+
+                                        if ($useCount >= 1 && $useCount <= 2) {
+                                            $useConfig = ['bg' => 'bg-yellow-100', 'text' => 'text-yellow-700', 'label' => 'Poco uso'];
+                                        } elseif ($useCount >= 3 && $useCount <= 5) {
+                                            $useConfig = ['bg' => 'bg-blue-100', 'text' => 'text-blue-700', 'label' => 'Uso normal'];
+                                        } elseif ($useCount > 5) {
+                                            $useConfig = ['bg' => 'bg-green-100', 'text' => 'text-green-700', 'label' => 'Muy usado'];
+                                        }
+
+                                        // Configuración de necesidad
+                                        $necessityText = [
+                                            1 => 'Capricho',
+                                            2 => 'Opcional',
+                                            3 => 'Necesario',
+                                            4 => 'Muy Necesario',
+                                            5 => '¡Esencial!'
+                                        ];
+
+                                        $levelConfig = [
+                                            1 => ['bg' => 'bg-red-50', 'text' => 'text-red-600', 'border' => 'border-red-200', 'icon' => 'fas fa-heart'],
+                                            2 => ['bg' => 'bg-orange-50', 'text' => 'text-orange-600', 'border' => 'border-orange-200', 'icon' => 'fas fa-star-half-alt'],
+                                            3 => ['bg' => 'bg-yellow-50', 'text' => 'text-yellow-700', 'border' => 'border-yellow-200', 'icon' => 'fas fa-star'],
+                                            4 => ['bg' => 'bg-green-50', 'text' => 'text-green-600', 'border' => 'border-green-200', 'icon' => 'fas fa-star'],
+                                            5 => ['bg' => 'bg-purple-50', 'text' => 'text-purple-700', 'border' => 'border-purple-200', 'icon' => 'fas fa-bolt']
+                                        ];
+
+                                        $config = $levelConfig[$necessityLevel] ?? ['bg' => 'bg-gray-50', 'text' => 'text-gray-600', 'border' => 'border-gray-200', 'icon' => 'fas fa-question'];
+                                        ?>
+
+                                        <!-- Título del producto -->
+                                        <h3 class="text-lg font-bold text-gray-900 mb-3">
                                             <?php echo htmlspecialchars($product['name']); ?>
                                         </h3>
 
-                                        <!-- Indicador de necesidad mejorado -->
-                                        <div class="flex items-center gap-2">
-                                            <?php
-                                            $necessityLevel = $product['necessity_level'] ?? 0;
-                                            $necessityText = [
-                                                1 => 'Capricho',
-                                                2 => 'Opcional',
-                                                3 => 'Necesario',
-                                                4 => 'Muy Necesario',
-                                                5 => '¡Esencial!'
-                                            ];
-
-                                            // Configuración de colores y estilos por nivel
-                                            $levelConfig = [
-                                                1 => ['bg' => 'bg-red-50', 'text' => 'text-red-600', 'border' => 'border-red-200', 'icon' => 'fas fa-heart'],
-                                                2 => ['bg' => 'bg-orange-50', 'text' => 'text-orange-600', 'border' => 'border-orange-200', 'icon' => 'fas fa-star-half-alt'],
-                                                3 => ['bg' => 'bg-yellow-50', 'text' => 'text-yellow-700', 'border' => 'border-yellow-200', 'icon' => 'fas fa-star'],
-                                                4 => ['bg' => 'bg-green-50', 'text' => 'text-green-600', 'border' => 'border-green-200', 'icon' => 'fas fa-star'],
-                                                5 => ['bg' => 'bg-purple-50', 'text' => 'text-purple-700', 'border' => 'border-purple-200', 'icon' => 'fas fa-bolt']
-                                            ];
-
-                                            $config = $levelConfig[$necessityLevel] ?? ['bg' => 'bg-gray-50', 'text' => 'text-gray-600', 'border' => 'border-gray-200', 'icon' => 'fas fa-question'];
-                                            ?>
-
-                                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold <?php echo $config['bg'] . ' ' . $config['text'] . ' ' . $config['border']; ?> border">
-                                                <i class="<?php echo $config['icon']; ?> text-xs"></i>
-                                                <?php echo $necessityText[$necessityLevel] ?? 'N/A'; ?>
+                                        <!-- Badges en fila -->
+                                        <div class="flex flex-wrap gap-2 mb-3">
+                                            <!-- Badge de uso -->
+                                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium <?php echo $useConfig['bg'] . ' ' . $useConfig['text']; ?>">
+                                                <?php echo $useConfig['label']; ?>
+                                                <span class="font-bold"><?php echo $useCount; ?></span>
                                             </span>
 
-                                            <!-- Indicador visual de estrellas -->
-                                            <div class="flex items-center gap-0.5">
-                                                <?php for ($i = 1; $i <= 5; $i++): ?>
-                                                    <i class="fas fa-star text-xs <?php echo $i <= $necessityLevel ? $config['text'] : 'text-gray-300'; ?>"></i>
-                                                <?php endfor; ?>
-                                            </div>
+                                            <!-- Badge de necesidad -->
+                                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium <?php echo $config['bg'] . ' ' . $config['text'] . ' ' . $config['border']; ?>">
+                                                <i class="<?php echo $config['icon']; ?>"></i>
+                                                <?php echo $necessityText[$necessityLevel] ?? 'N/A'; ?>
+                                            </span>
                                         </div>
                                     </div>
 
@@ -1106,6 +1144,25 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                                     </h3>
 
                                     <?php
+
+                                    $useCount = (int) $product['veces_usado'];
+                                    $necessityLevel = $product['necessity_level'] ?? 0;
+
+                                    // Configuración de uso
+                                    $useConfig = [
+                                        'bg' => 'bg-gray-100',
+                                        'text' => 'text-gray-600',
+                                        'label' => 'Sin uso'
+                                    ];
+
+                                    if ($useCount >= 1 && $useCount <= 2) {
+                                        $useConfig = ['bg' => 'bg-yellow-100', 'text' => 'text-yellow-700', 'label' => 'Poco uso'];
+                                    } elseif ($useCount >= 3 && $useCount <= 5) {
+                                        $useConfig = ['bg' => 'bg-blue-100', 'text' => 'text-blue-700', 'label' => 'Uso normal'];
+                                    } elseif ($useCount > 5) {
+                                        $useConfig = ['bg' => 'bg-green-100', 'text' => 'text-green-700', 'label' => 'Muy usado'];
+                                    }
+
                                     $necessityLevel = $product['necessity_level'] ?? 0;
                                     $necessityText = [1 => 'Capricho', 2 => 'Opcional', 3 => 'Necesario', 4 => 'Muy Necesario', 5 => '¡Esencial!'];
                                     $levelConfig = [
@@ -1118,6 +1175,13 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                                     $config = $levelConfig[$necessityLevel] ?? ['bg' => 'bg-gray-50', 'text' => 'text-gray-600'];
                                     ?>
 
+                                    <!-- Badge de uso -->
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold <?php echo $useConfig['bg'] . ' ' . $useConfig['text']; ?>">
+                                        <?php echo $useConfig['label']; ?>
+                                        <span><?php echo "-" . $useCount; ?></span>
+                                    </span>
+
+                                    <!-- Badge de necesidad -->
                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold <?php echo $config['bg'] . ' ' . $config['text']; ?>">
                                         <?php echo $necessityText[$necessityLevel] ?? 'N/A'; ?>
                                     </span>
