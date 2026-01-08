@@ -442,10 +442,11 @@ require_once 'config.php';
                             </div>
 
                             <!-- Acciones -->
-                            <div class="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-3">
+                            <div class="mt-4 pt-4 border-t border-gray-100 grid grid-cols-3 gap-3">
 
+                                <!-- Detalles -->
                                 <button
-                                    class="open-details-modal-btn w-full inline-flex items-center justify-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+                                    class="open-details-modal-btn w-full inline-flex items-center justify-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition-colors"
                                     data-id="<?php echo htmlspecialchars($item['id']); ?>"
                                     data-name="<?php echo htmlspecialchars($item['name']); ?>"
                                     data-description="<?php echo htmlspecialchars($item['description']); ?>"
@@ -455,22 +456,33 @@ require_once 'config.php';
                                     data-necessity-class="<?php echo htmlspecialchars($necessityConfig['text']); ?>"
                                     data-date="<?php echo date('d/m/Y \a \l\a\s H:i', strtotime($item['purchased_at'])); ?>"
                                     data-reason="<?php echo htmlspecialchars($item['purchase_reason']); ?>">
-                                    <i class="fas fa-eye mr-2"></i>
+                                    <i class="fas fa-eye mr-1"></i>
                                     Detalles
                                 </button>
 
+                                <!-- Lo usé hoy -->
                                 <button
-                                    class="rebuy-btn w-full inline-flex items-center justify-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-lg transition-all duration-300 transform hover:scale-105"
+                                    class="use-today-btn w-full inline-flex items-center justify-center px-3 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs font-semibold rounded-lg transition-all"
+                                    data-product-id="<?php echo htmlspecialchars($item['product_id']); ?>">
+                                    <i class="fas fa-check-circle mr-1"></i>
+                                    Usado hoy
+                                </button>
+
+                                <!-- Comprar -->
+                                <button
+                                    class="rebuy-btn w-full inline-flex items-center justify-center px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-all duration-300 transform hover:scale-105"
                                     data-history-id="<?php echo htmlspecialchars($item['id']); ?>"
                                     data-name="<?php echo htmlspecialchars($item['name']); ?>"
                                     data-price="<?php echo htmlspecialchars($item['purchased_price']); ?>"
                                     data-currency="<?php echo htmlspecialchars($item['purchased_currency']); ?>"
                                     data-description="<?php echo htmlspecialchars($item['description']); ?>"
                                     data-url="<?php echo htmlspecialchars($item['product_url']); ?>">
-                                    <i class="fas fa-cart-plus mr-2"></i>
-                                    <span>Comprar</span>
+                                    <i class="fas fa-cart-plus mr-1"></i>
+                                    Comprar
                                 </button>
+
                             </div>
+
                         </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -836,6 +848,31 @@ require_once 'config.php';
                         });
                 });
             });
+
+            document.querySelectorAll('.use-today-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const productId = btn.dataset.productId;
+
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-check mr-1"></i> Registrado';
+
+                    await fetch('save_falta.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            product_id: productId,
+                            type: 'usado',
+                            importance: 3
+                        })
+                    });
+
+                    btn.classList.remove('bg-emerald-100');
+                    btn.classList.add('bg-green-500', 'text-white');
+                });
+            });
+
 
         });
     </script>
