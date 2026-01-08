@@ -563,8 +563,7 @@ if (!empty($product['rebuy_from_history_id'])) {
                                                     class="h-full rounded-full transition-all"
                                                     style="
                 width: <?php echo ($usage['importance'] * 20); ?>%;
-                background-color:
-                <?php
+                background-color:<?php
                                     echo match (true) {
                                         $usage['importance'] >= 4 => '#ef4444', // rojo
                                         $usage['importance'] == 3 => '#f59e0b', // amarillo
