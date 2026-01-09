@@ -5,93 +5,56 @@ require_once 'config.php';
 // --- LÓGICA PHP PARA CARGAR LOS PRODUCTOS ---
 // Esta es una simulación. Debes reemplazarla con tu propia consulta a la base de datos.
 $products = [];
-
+// --- REEMPLAZA TU BLOQUE DE OBTENCIÓN DE PRODUCTOS POR ESTE ---
 try {
     $pdo = getDBConnection();
 
-    // 1️⃣ Obtener productos no comprados
+    // 1️⃣ SQL con DISTINCT para evitar duplicados reales de la base de datos
     $stmt = $pdo->query("
-        SELECT id, name, price, necessity_level, purchase_reason
+        SELECT DISTINCT id, name, price, necessity_level, purchase_reason
         FROM list_products
         WHERE is_purchased = FALSE
         ORDER BY necessity_level DESC
     ");
 
-    $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $raw_products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $products = [];
 
-    // 2️⃣ Enriquecer cada producto
-    foreach ($products as &$product) {
-        $productId = $product['id'];
+    // 2️⃣ Enriquecer sin usar referencias (&) para evitar el error del "último elemento repetido"
+    foreach ($raw_products as $item) {
+        $productId = $item['id'];
 
-        /* =========================
-           📈 HISTORIAL DE PRECIOS
-        ========================== */
-        $price_history = [];
-        try {
-            $stmt_history = $pdo->prepare("
-                SELECT price, purchased_at
-                FROM product_price
-                WHERE product_id = ?
-                ORDER BY purchased_at DESC
-            ");
-            $stmt_history->execute([$productId]);
-            $price_history = $stmt_history->fetchAll(PDO::FETCH_ASSOC);
-        } catch (Exception $e) {
-            $price_history = [];
-        }
+        // --- Lógica de historial de precios ---
+        $stmt_history = $pdo->prepare("SELECT price, purchased_at FROM product_price WHERE product_id = ? ORDER BY purchased_at DESC");
+        $stmt_history->execute([$productId]);
+        $price_history = $stmt_history->fetchAll(PDO::FETCH_ASSOC);
 
-        $product['price_history'] = $price_history;
-
-        // Tendencia de precio
         $price_trend = 'estable';
         if (count($price_history) >= 2) {
             $current = (float)$price_history[0]['price'];
             $previous = (float)$price_history[1]['price'];
-
-            if ($current > $previous) {
-                $price_trend = 'sube';
-            } elseif ($current < $previous) {
-                $price_trend = 'baja';
-            }
+            if ($current > $previous) $price_trend = 'sube';
+            elseif ($current < $previous) $price_trend = 'baja';
         }
 
-        $product['price_trend'] = $price_trend;
+        // --- Lógica de usos ---
+        $stmt_usages = $pdo->prepare("SELECT importance FROM product_usages WHERE product_id = ? AND type = 'faltó'");
+        $stmt_usages->execute([$productId]);
+        $usages = $stmt_usages->fetchAll(PDO::FETCH_ASSOC);
 
-        /* =========================
-           🔁 USOS DEL PRODUCTO
-        ========================== */
-        $product_usages = [];
-        try {
-            $stmt_usages = $pdo->prepare("
-                SELECT context, importance, used_at
-                FROM product_usages
-                WHERE product_id = ?
-                  AND type = 'faltó'
-                ORDER BY used_at DESC
-            ");
-            $stmt_usages->execute([$productId]);
-            $product_usages = $stmt_usages->fetchAll(PDO::FETCH_ASSOC);
-        } catch (Exception $e) {
-            $product_usages = [];
-        }
+        $usage_count = count($usages);
+        $importance_avg = $usage_count > 0 ? round(array_sum(array_column($usages, 'importance')) / $usage_count, 2) : 0;
 
-        $product['usages'] = $product_usages;
-
-        // Métricas derivadas
-        $usage_count = count($product_usages);
-        $importance_avg = 0;
-
-        if ($usage_count > 0) {
-            $total_importance = array_sum(array_column($product_usages, 'importance'));
-            $importance_avg = round($total_importance / $usage_count, 2);
-        }
-
-        $product['usage_count'] = $usage_count;
-        $product['importance_avg'] = $importance_avg;
+        // Construimos el array final de forma limpia
+        $products[] = array_merge($item, [
+            'price_history' => $price_history,
+            'price_trend' => $price_trend,
+            'usage_count' => $usage_count,
+            'importance_avg' => $importance_avg
+        ]);
     }
 } catch (Exception $e) {
     $products = [];
-    $error_message = "Error al cargar los productos: " . $e->getMessage();
 }
 
 //echo json_encode($products);
@@ -171,13 +134,14 @@ function getNecessityText(int $level): string
                     <?php else: ?>
                         <?php foreach ($products as $product): ?>
                             <label for="product-<?php echo $product['id']; ?>" class="flex items-center p-4 bg-gray-50 border border-gray-200 rounded-xl hover:bg-indigo-50 hover:border-indigo-300 transition-all cursor-pointer">
-                                <input type="checkbox"
+                                <input
+                                    type="checkbox"
+                                    id="product-<?php echo $product['id']; ?>"
                                     class="h-6 w-6 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 product-checkbox"
-
-                                    data-name="<?= htmlspecialchars($product['name']) ?>"
+                                    data-name="<?php echo htmlspecialchars($product['name'], ENT_QUOTES, 'UTF-8'); ?>"
                                     data-price="<?= $product['price'] ?>"
-                                    data-necessity="<?= getNecessityText($product['necessity_level']) ?>"
-                                    data-reason="<?= htmlspecialchars($product['purchase_reason']) ?>"
+                                    data-necessity="<?= getNecessityText(level: $product['necessity_level']) ?>"
+                                    data-reason="<?php echo htmlspecialchars($product['purchase_reason'], ENT_QUOTES, 'UTF-8'); ?>"
 
                                     data-usage-count="<?= $product['usage_count'] ?>"
                                     data-importance="<?= $product['importance_avg'] ?>"
@@ -206,7 +170,8 @@ function getNecessityText(int $level): string
                                 </div>
 
                             </label>
-                        <?php endforeach; ?>
+                        <?php endforeach;
+                        unset($product); ?>
                     <?php endif; ?>
                 </div>
             </div>
