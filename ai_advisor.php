@@ -148,8 +148,19 @@ function getNecessityText(int $level): string
                     <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                         <span class="text-gray-500 text-lg">$</span>
                     </div>
-                    <input type="number" id="budget" value="<?php echo intval($ocio_restante); ?>" class="block w-full text-lg rounded-xl border-gray-300 pl-10 pr-4 py-3 focus:border-indigo-500 focus:ring-indigo-500" placeholder="100000" min="0">
+
+                    <input
+                        type="text"
+                        id="budget"
+                        value="<?php echo intval($ocio_restante); ?>"
+                        class="block w-full text-lg rounded-xl border-gray-300 pl-10 pr-4 py-3 
+           focus:border-indigo-500 focus:ring-indigo-500 
+           transition-all text-gray-900"
+                        placeholder="100.000"
+                        inputmode="numeric" />
+
                 </div>
+
             </div>
 
             <div class="mb-8">
@@ -337,12 +348,52 @@ function getNecessityText(int $level): string
                     );
                 }
 
-                /* ==========================
-                   MAIN
-                ========================== */
 
                 document.addEventListener('DOMContentLoaded', () => {
                     const budgetInput = document.getElementById('budget');
+
+                    const formatCLP = (value) =>
+                        new Intl.NumberFormat('es-CL').format(value);
+
+                    const cleanNumber = (value) =>
+                        Number(value.replace(/\./g, '').replace(/[^\d-]/g, ''));
+
+                    function updateBudgetStyle(value) {
+                        if (value < 0) {
+                            budgetInput.classList.add('text-red-600');
+                            budgetInput.classList.remove('text-gray-900');
+                        } else {
+                            budgetInput.classList.remove('text-red-600');
+                            budgetInput.classList.add('text-gray-900');
+                        }
+                    }
+
+
+                    // Formatear al cargar
+                    let initialValue = cleanNumber(budgetInput.value);
+                    if (!isNaN(initialValue)) {
+                        budgetInput.value = formatCLP(initialValue);
+                        updateBudgetStyle(initialValue);
+                    }
+
+                    // Formatear mientras escribe
+                    budgetInput.addEventListener('input', () => {
+                        const rawValue = cleanNumber(budgetInput.value);
+                        if (isNaN(rawValue)) return;
+
+                        updateBudgetStyle(rawValue);
+                        budgetInput.value = formatCLP(rawValue);
+                    });
+
+                    // Obtener valor limpio cuando lo necesites
+                    window.getBudgetValue = () => cleanNumber(budgetInput.value);
+                });
+
+                /* ==========================
+                MAIN
+                ========================== */
+
+                document.addEventListener('DOMContentLoaded', () => {
                     const generateBtn = document.getElementById('generate-prompt-btn');
                     const resultWrapper = document.getElementById('result-wrapper');
                     const promptOutput = document.getElementById('prompt-output');
@@ -352,8 +403,12 @@ function getNecessityText(int $level): string
 
 
                     generateBtn.addEventListener('click', () => {
-                        const budget = Number(budgetInput.value);
-                        if (!budget) return alert('Por favor, ingresa un presupuesto válido.');
+                        const budget = getBudgetValue();
+
+                        if (budget <= 0) {
+                            alert('Ingresa un presupuesto válido.');
+                            return;
+                        }
 
                         const formattedBudget = new Intl.NumberFormat('es-CL', {
                             style: 'currency',
@@ -390,19 +445,19 @@ function getNecessityText(int $level): string
                             }).format(price);
 
                             productListText += `- **Producto ${productsSelectedCount}:** ${cb.dataset.name}\n`;
-                            productListText += `  - **Precio Actual:** ${formattedPrice}\n`;
-                            productListText += `  - **Nivel de Necesidad:** ${cb.dataset.necessity}\n`;
-                            productListText += `  - **Motivo:** "${cb.dataset.reason}"\n`;
+                            productListText += ` - **Precio Actual:** ${formattedPrice}\n`;
+                            productListText += ` - **Nivel de Necesidad:** ${cb.dataset.necessity}\n`;
+                            productListText += ` - **Motivo:** "${cb.dataset.reason}"\n`;
 
-                            productListText += `  - **Cantidad de veces que ha faltado:** ${usageCount}\n`;
-                            productListText += `  - **Importancia promedio cuando faltó:** ${importance}/5\n`;
+                            productListText += ` - **Cantidad de veces que ha faltado:** ${usageCount}\n`;
+                            productListText += ` - **Importancia promedio cuando faltó:** ${importance}/5\n`;
 
                             if (priceTrend === 'sube') {
-                                productListText += `  - **Historial de precio:** El precio ha subido recientemente 📈\n`;
+                                productListText += ` - **Historial de precio:** El precio ha subido recientemente 📈\n`;
                             } else if (priceTrend === 'baja') {
-                                productListText += `  - **Historial de precio:** El precio ha bajado recientemente 📉\n`;
+                                productListText += ` - **Historial de precio:** El precio ha bajado recientemente 📉\n`;
                             } else {
-                                productListText += `  - **Historial de precio:** El precio se ha mantenido estable ➖\n`;
+                                productListText += ` - **Historial de precio:** El precio se ha mantenido estable ➖\n`;
                             }
 
                             productListText += `\n`;
@@ -426,35 +481,35 @@ function getNecessityText(int $level): string
                             });
 
                         promptOutput.value = `
-**Rol:** Actúa como un Asesor Financiero experto en Economía Conductual y Análisis de Coste-Beneficio. Tu enfoque es ultra-racional, objetivo y escéptico ante gastos innecesarios.
+                **Rol:** Actúa como un Asesor Financiero experto en Economía Conductual y Análisis de Coste-Beneficio. Tu enfoque es ultra-racional, objetivo y escéptico ante gastos innecesarios.
 
-**Contexto del Usuario:**
-- **Presupuesto Disponible:** ${formattedBudget}
-- **Productos en Consideración:** ${productListText.trim()}
+                **Contexto del Usuario:**
+                - **Presupuesto Disponible:** ${formattedBudget}
+                - **Productos en Consideración:** ${productListText.trim()}
 
-**Instrucciones de Análisis Académico y Financiero:**
-Para cada producto, aplica un análisis riguroso basado en estos pilares:
-1. **Ponderación de Utilidad (60%):** Cruza la frecuencia de uso con la necesidad crítica. Si el uso es ocasional pero el precio es alto, penaliza el score.
-2. **Análisis de Oportunidad de Mercado (20%):** Basado en el historial de precios provisto, detecta si es un mínimo histórico o una inflación artificial.
-3. **Costo de Oportunidad (20%):** Analiza qué porcentaje del presupuesto total consume y qué otras necesidades se sacrifican.
+                **Instrucciones de Análisis Académico y Financiero:**
+                Para cada producto, aplica un análisis riguroso basado en estos pilares:
+                1. **Ponderación de Utilidad (60%):** Cruza la frecuencia de uso con la necesidad crítica. Si el uso es ocasional pero el precio es alto, penaliza el score.
+                2. **Análisis de Oportunidad de Mercado (20%):** Basado en el historial de precios provisto, detecta si es un mínimo histórico o una inflación artificial.
+                3. **Costo de Oportunidad (20%):** Analiza qué porcentaje del presupuesto total consume y qué otras necesidades se sacrifican.
 
-**Reglas de Clasificación:**
-Asigna un score de 1 a 100 y clasifica según:
-- **🟢 Compra Racional (Score ≥ 75):** Alta utilidad, precio justo, impacto presupuestario manejable.
-- **🟡 Compra Debatible (Score 50-74):** Deseo vs. Necesidad no claro, o precio poco atractivo.
-- **🔴 Compra Impulsiva (Score < 50):** Baja frecuencia de uso, gratificación instantánea o precio inflado.
+                **Reglas de Clasificación:**
+                Asigna un score de 1 a 100 y clasifica según:
+                - **🟢 Compra Racional (Score ≥ 75):** Alta utilidad, precio justo, impacto presupuestario manejable.
+                - **🟡 Compra Debatible (Score 50-74):** Deseo vs. Necesidad no claro, o precio poco atractivo.
+                - **🔴 Compra Impulsiva (Score < 50):** Baja frecuencia de uso, gratificación instantánea o precio inflado.
 
-**Tarea:**
-Presenta un informe ejecutivo comparativo. Selecciona estrictamente los **3 mejores productos** (o menos, si el resto no alcanza un score racional).
+                **Tarea:**
+                Presenta un informe ejecutivo comparativo. Selecciona estrictamente los **3 mejores productos** (o menos, si el resto no alcanza un score racional).
 
-**Estructura de Respuesta por Producto:**
-1. **Análisis de Valor:** (Breve párrafo sobre por qué este producto es una inversión o un gasto).
-2. **Pros y Contras:** (2 de cada uno, enfocados en lo financiero).
-3. **Cálculo de 'Costo por Uso':** (Estima el precio dividido por los usos mensuales esperados).
-4. **Veredicto:** [Comprar Ahora / Esperar / Descartar] + Clasificación (🟢/🟡/🔴).
+                **Estructura de Respuesta por Producto:**
+                1. **Análisis de Valor:** (Breve párrafo sobre por qué este producto es una inversión o un gasto).
+                2. **Pros y Contras:** (2 de cada uno, enfocados en lo financiero).
+                3. **Cálculo de 'Costo por Uso' :** (Estima el precio dividido por los usos mensuales esperados).
+                4. **Veredicto:** [Comprar Ahora / Esperar / Descartar] + Clasificación (🟢/🟡/🔴).
 
-**Restricción:** Si detectas que un producto es un capricho innecesario, sé directo y recomienda no comprarlo, incluso si el presupuesto alcanza.
-`.trim();
+                **Restricción:** Si detectas que un producto es un capricho innecesario, sé directo y recomienda no comprarlo, incluso si el presupuesto alcanza.
+                `.trim();
 
                         resultWrapper.classList.remove('hidden');
                     });
@@ -472,12 +527,13 @@ Presenta un informe ejecutivo comparativo. Selecciona estrictamente los **3 mejo
                     renderScoreBar(cb);
                 });
                 document.getElementById('autoSelectBtn').addEventListener('click', () => {
-                    const budget = Number(document.getElementById('budget').value);
+                    const budget = getBudgetValue();
 
-                    if (isNaN(budget) || budget <= 0) {
-                        alert('Ingresa un presupuesto válido');
+                    if (budget <= 0) {
+                        alert('Ingresa un presupuesto válido.');
                         return;
                     }
+
 
 
                     // Limpiar selección previa
@@ -541,8 +597,7 @@ Presenta un informe ejecutivo comparativo. Selecciona estrictamente los **3 mejo
                     const usage = Math.min(Number(cb.dataset.usageCount || 0), 10) * 10;
                     const price = Number(cb.dataset.price || 0);
 
-                    const priceScore =
-                        price <= 10000 ? 100 :
+                    const priceScore = price <= 10000 ? 100 :
                         price <= 30000 ? 75 :
                         price <= 60000 ? 50 :
                         30;
