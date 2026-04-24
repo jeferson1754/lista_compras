@@ -141,3 +141,40 @@ function getNecessityLevelAnalysis($pdo)
 // Para usar:
 // $reasonsAnalysis = getPurchaseReasonsAnalysis(getDBConnection());
 // $necessityAnalysis = getNecessityLevelAnalysis(getDBConnection());
+
+function getStoreData(string $url): array
+{
+    // Configura aquí tus tiendas, palabras clave e iconos
+    $stores = [
+        'mercadolibre' => [
+            'name'  => 'Mercado Libre',
+            'icon'  => 'fa-handshake',
+            'color' => 'bg-yellow-100 text-yellow-800'
+        ],
+        'amazon' => [
+            'name'  => 'Amazon',
+            'icon'  => 'fa-amazon',
+            'color' => 'bg-orange-100 text-orange-800'
+        ],
+        'aliexpress' => [
+            'name'  => 'AliExpress',
+            'icon'  => 'fa-shopping-cart',
+            'color' => 'bg-red-100 text-red-800'
+        ]
+    ];
+
+    // Valor por defecto si no encuentra ninguna coincidencia
+    $default = [
+        'name'  => 'Tienda Externa',
+        'icon'  => 'fa-store',
+        'color' => 'bg-gray-100 text-gray-800'
+    ];
+
+    foreach ($stores as $key => $data) {
+        if (strpos(strtolower($url), $key) !== false) {
+            return $data;
+        }
+    }
+
+    return $default;
+}

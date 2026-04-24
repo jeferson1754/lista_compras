@@ -974,19 +974,15 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                         <div class="transition-all duration-300 overflow-hidden group">
                             <!-- Header con gradiente sutil -->
                             <div class="bg-gradient-to-br from-gray-50 to-white p-6 border-b border-gray-100">
-                                <div class="flex items-start justify-between mb-3">
+                                <div class="flex flex-col md:flex-row md:items-start justify-between gap-3 mb-4">
                                     <div class="flex-1">
                                         <?php
-                                        $useCount = (int) $product['veces_usado'];
+                                        $useCount = (int) ($product['usage_count'] ?? 0); // Ajustado a tu lógica de base de datos
                                         $necessityLevel = $product['necessity_level'] ?? 0;
+                                        $store = getStoreData($product['product_url'] ?? '');
 
-                                        // Configuración de uso
-                                        $useConfig = [
-                                            'bg' => 'bg-gray-100',
-                                            'text' => 'text-gray-600',
-                                            'label' => 'Sin uso'
-                                        ];
-
+                                        // Configuración dinámica de uso
+                                        $useConfig = ['bg' => 'bg-gray-100', 'text' => 'text-gray-600', 'label' => 'Sin uso'];
                                         if ($useCount >= 1 && $useCount <= 2) {
                                             $useConfig = ['bg' => 'bg-yellow-100', 'text' => 'text-yellow-700', 'label' => 'Poco uso'];
                                         } elseif ($useCount >= 3 && $useCount <= 5) {
@@ -996,14 +992,7 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                                         }
 
                                         // Configuración de necesidad
-                                        $necessityText = [
-                                            1 => 'Capricho',
-                                            2 => 'Opcional',
-                                            3 => 'Necesario',
-                                            4 => 'Muy Necesario',
-                                            5 => '¡Esencial!'
-                                        ];
-
+                                        $necessityText = [1 => 'Capricho', 2 => 'Opcional', 3 => 'Necesario', 4 => 'Muy Necesario', 5 => '¡Esencial!'];
                                         $levelConfig = [
                                             1 => ['bg' => 'bg-red-50', 'text' => 'text-red-600', 'border' => 'border-red-200', 'icon' => 'fas fa-heart'],
                                             2 => ['bg' => 'bg-orange-50', 'text' => 'text-orange-600', 'border' => 'border-orange-200', 'icon' => 'fas fa-star-half-alt'],
@@ -1011,35 +1000,38 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                                             4 => ['bg' => 'bg-green-50', 'text' => 'text-green-600', 'border' => 'border-green-200', 'icon' => 'fas fa-star'],
                                             5 => ['bg' => 'bg-purple-50', 'text' => 'text-purple-700', 'border' => 'border-purple-200', 'icon' => 'fas fa-bolt']
                                         ];
-
                                         $config = $levelConfig[$necessityLevel] ?? ['bg' => 'bg-gray-50', 'text' => 'text-gray-600', 'border' => 'border-gray-200', 'icon' => 'fas fa-question'];
                                         ?>
 
-                                        <!-- Título del producto -->
-                                        <h3 class="text-lg font-bold text-gray-900 mb-3">
-                                            <?php echo htmlspecialchars($product['name']); ?>
-                                        </h3>
+                                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                                            <a href="<?php echo htmlspecialchars($product['product_url']); ?>" target="_blank" class="hover:text-blue-600 transition-colors">
+                                                <h3 class="text-lg md:text-xl font-bold text-gray-900 leading-tight">
+                                                    <?php echo htmlspecialchars($product['name']); ?>
+                                                </h3>
+                                            </a>
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wider <?php echo $store['color']; ?>">
+                                                <i class="fas <?php echo $store['icon']; ?>"></i>
+                                                <?php echo $store['name']; ?>
+                                            </span>
+                                        </div>
 
-                                        <!-- Badges en fila -->
                                         <div class="flex flex-wrap gap-2 mb-3">
-                                            <!-- Badge de uso -->
-                                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium <?php echo $useConfig['bg'] . ' ' . $useConfig['text']; ?>">
-                                                <?php echo $useConfig['label']; ?>
-                                                <span class="font-bold"><?php echo $useCount; ?></span>
+                                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs md:text-sm font-medium <?php echo $useConfig['bg'] . ' ' . $useConfig['text']; ?>">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-current opacity-50"></span>
+                                                <?php echo $useConfig['label']; ?>: <span class="font-bold"><?php echo $useCount; ?></span>
                                             </span>
 
-                                            <!-- Badge de necesidad -->
-                                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium <?php echo $config['bg'] . ' ' . $config['text'] . ' ' . $config['border']; ?>">
-                                                <i class="<?php echo $config['icon']; ?>"></i>
+                                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs md:text-sm font-medium border <?php echo $config['bg'] . ' ' . $config['text'] . ' ' . $config['border']; ?>">
+                                                <i class="<?php echo $config['icon']; ?> text-[10px]"></i>
                                                 <?php echo $necessityText[$necessityLevel] ?? 'N/A'; ?>
                                             </span>
                                         </div>
                                     </div>
 
-
-                                    <!-- Moneda destacada -->
-                                    <div class="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white text-lg font-bold shadow-lg">
-                                        <?php echo $product['currency']; ?>
+                                    <div class="flex flex-row md:flex-col items-center gap-2 self-start">
+                                        <div class="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl text-white text-lg font-bold shadow-md">
+                                            <?php echo $product['currency'] ?? '$'; ?>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1139,9 +1131,21 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                         <div class="p-4">
                             <div class="flex justify-between items-start gap-2 mb-3">
                                 <div class="flex-1 min-w-0">
-                                    <h3 class="text-base font-bold text-gray-800 leading-tight mb-1 break-words">
-                                        <?php echo htmlspecialchars($product['name']); ?>
-                                    </h3>
+                                    <?php
+                                    // Llamamos a la función antes de mostrar el enlace
+                                    $store = getStoreData($product['product_url']);
+                                    ?>
+
+                                    <a href="<?php echo htmlspecialchars($product['product_url']); ?>" target="_blank" class="group">
+                                        <div class="inline-flex items-center gap-1 mb-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider <?= $store['color'] ?>">
+                                            <i class="fas <?= $store['icon'] ?>"></i>
+                                            <?= $store['name'] ?>
+                                        </div>
+
+                                        <h3 class="text-base font-bold text-gray-800 group-hover:text-indigo-600 leading-tight mb-1 break-words transition-colors">
+                                            <?php echo htmlspecialchars($product['name']); ?>
+                                        </h3>
+                                    </a>
 
                                     <?php
 
