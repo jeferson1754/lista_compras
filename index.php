@@ -193,7 +193,7 @@ $queryParams = []; // For prepared statement parameter binding
 
 // Filter by name
 if (!empty($searchName)) {
-    $whereClauses[] = "name LIKE :search_name";
+    $whereClauses[] = "p.name LIKE :search_name";
     $queryParams[':search_name'] = '%' . $searchName . '%';
 }
 
@@ -267,8 +267,13 @@ if (!empty($whereClauses)) {
 $baseSql = "
 SELECT 
     p.*,
+    p.name as name,
+    c.name AS category_name,
+    c.icon AS category_icon,
+    c.color AS category_color,
     COUNT(u.id) AS veces_usado
 FROM list_products p
+LEFT JOIN categories c ON p.category_id = c.id
 LEFT JOIN product_usages u ON u.product_id = p.id
 ";
 
@@ -316,7 +321,9 @@ $stmt_stores = $pdo->query("
 ");
 $existing_stores = $stmt_stores->fetchAll(PDO::FETCH_ASSOC); // Usamos FETCH_ASSOC para tener el nombre y el conteo
 
-
+// En tu consulta de categorías para el Select
+$stmt_cats = $pdo->query("SELECT * FROM categories ORDER BY name ASC");
+$categories = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
 <!DOCTYPE html>
@@ -933,56 +940,83 @@ $existing_stores = $stmt_stores->fetchAll(PDO::FETCH_ASSOC); // Usamos FETCH_ASS
         </div>
 
 
-        <form method="GET" action="">
-            <div class="flex flex-col md:flex-row gap-4 mb-8">
-                <div class="flex-1">
-                    <div class="relative">
-                        <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                        <input type="text" id="search-input" name="search_name"
-                            class="w-full pl-12 pr-4 py-3 bg-white/80 backdrop-blur-lg border border-white/20 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 placeholder-gray-400"
-                            placeholder="Buscar productos..."
-                            value="<?php echo htmlspecialchars($searchName); ?>">
+
+
+
+        <form method="GET" action="" class="mb-8 space-y-4">
+            <div class="bg-white/30 backdrop-blur-md p-6 rounded-3xl border border-white/20 shadow-xl">
+
+                <div class="relative mb-4">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <i class="fas fa-search text-gray-400"></i>
+                    </div>
+                    <input type="text" name="search_name" value="<?php echo htmlspecialchars($searchName); ?>"
+                        placeholder="Buscar producto por nombre..."
+                        class="w-full pl-11 pr-4 py-3 bg-white/50 border border-white/30 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-400 focus:bg-white transition-all duration-300">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                    <div class="flex flex-col">
+                        <label class="text-[10px] uppercase font-bold text-gray-500 mb-1 ml-2">Tienda</label>
+                        <select name="store"
+                            class="px-4 py-3 bg-white/60 border border-white/30 rounded-xl focus:ring-4 focus:ring-blue-100 transition-all cursor-pointer capitalize">
+                            <option value="">Todas las tiendas (<?php echo $totalProducts; ?>)</option>
+                            <?php foreach ($existing_stores as $row):
+                                $store = $row['store_name'];
+                                $count = $row['total'];
+                                $display_name = ucfirst(explode('.', $store)[0]);
+                            ?>
+                                <option value="<?php echo htmlspecialchars($store); ?>" <?php echo ($storeFilter === $store) ? 'selected' : ''; ?>>
+                                    <?php echo $display_name . " (" . $count . ")"; ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label class="text-[10px] uppercase font-bold text-gray-500 mb-1 ml-2">Categoría</label>
+                        <select name="category_id"
+                            class="px-4 py-3 bg-white/60 border border-white/30 rounded-xl focus:ring-4 focus:ring-blue-100 transition-all cursor-pointer">
+                            <option value="0">Todas las Categorias</option>
+                            <?php
+                            // Asumiendo que tienes una variable $categories con la lista de la DB
+                            foreach ($categories as $cat): ?>
+                                <option value="<?php echo $cat['id']; ?>" <?php echo ($categoryId == $cat['id']) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($cat['name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col">
+                        <label class="text-[10px] uppercase font-bold text-gray-500 mb-1 ml-2">Ordenar por</label>
+                        <select name="sort_by"
+                            class="px-4 py-3 bg-white/60 border border-white/30 rounded-xl focus:ring-4 focus:ring-blue-100 transition-all cursor-pointer">
+                            <option value="necessity_level-desc" <?php echo ($sortBy === 'necessity_level-desc') ? 'selected' : ''; ?>>Prioridad (Necesidad)</option>
+                            <option value="created_at-desc" <?php echo ($sortBy === 'created_at-desc') ? 'selected' : ''; ?>>Más Reciente</option>
+                            <option value="use" <?php echo ($sortBy === 'use') ? 'selected' : ''; ?>>Falta Uso</option>
+                            <option value="name-asc" <?php echo ($sortBy === 'name-asc') ? 'selected' : ''; ?>>Nombre A-Z</option>
+                            <option value="price-asc" <?php echo ($sortBy === 'price-asc') ? 'selected' : ''; ?>>Precio Menor</option>
+                            <option value="price-desc" <?php echo ($sortBy === 'price-desc') ? 'selected' : ''; ?>>Precio Mayor</option>
+                        </select>
                     </div>
                 </div>
-                <div class="flex flex-wrap gap-2">
 
-                    <select name="store"
-                        class="px-4 py-3 bg-white/80 backdrop-blur-lg border border-white/20 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 capitalize">
-                        <option value="">Todas las tiendas</option>
-
-                        <?php foreach ($existing_stores as $row):
-                            $store = $row['store_name'];
-                            $count = $row['total'];
-                            if (empty($store)) continue;
-
-                            // Limpiar el nombre para mostrar (ej: amazon.com -> Amazon)
-                            $display_name = ucfirst(explode('.', $store)[0]);
-                        ?>
-                            <option value="<?php echo htmlspecialchars($store); ?>"
-                                <?php echo (isset($_GET['store']) && $_GET['store'] === $store) ? 'selected' : ''; ?>>
-                                <?php echo $display_name . " (" . $count . ")"; ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-
-                    <select id="sort-select" name="sort_by"
-                        class="px-4 py-3 bg-white/80 backdrop-blur-lg border border-white/20 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300">
-                        <option value="necessity_level-desc" <?php echo ($sortBy === 'necessity_level-desc') ? 'selected' : ''; ?>>Prioridad (Necesidad)</option>
-
-                        <option value="created_at-desc" <?php echo ($sortBy === 'created_at-desc') ? 'selected' : ''; ?>>Más Reciente</option>
-                        <option value="use" <?php echo ($sortBy === 'use') ? 'selected' : ''; ?>>Falta Uso</option>
-                        <option value="name-asc" <?php echo ($sortBy === 'name-asc') ? 'selected' : ''; ?>>Nombre A-Z</option>
-                        <option value="name-desc" <?php echo ($sortBy === 'name-desc') ? 'selected' : ''; ?>>Nombre Z-A</option>
-                        <option value="price-asc" <?php echo ($sortBy === 'price-asc') ? 'selected' : ''; ?>>Precio Menor</option>
-                        <option value="price-desc" <?php echo ($sortBy === 'price-desc') ? 'selected' : ''; ?>>Precio Mayor</option>
-                    </select>
-
-                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105">
-                        <i class="fas fa-filter mr-2"></i>Aplicar
+                <div class="mt-6 flex flex-col sm:flex-row gap-3">
+                    <button type="submit"
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-2xl transition-all duration-300 transform hover:scale-[1.02] shadow-lg shadow-blue-200 flex items-center justify-center">
+                        <i class="fas fa-filter mr-2"></i> Aplicar Filtros
                     </button>
+
+                    <a href="index.php"
+                        class="px-6 py-3 bg-gray-200/50 hover:bg-gray-200 text-gray-700 font-semibold rounded-2xl transition-all text-center flex items-center justify-center">
+                        <i class="fas fa-sync-alt mr-2"></i> Limpiar
+                    </a>
                 </div>
             </div>
         </form>
+
 
 
 
@@ -1050,15 +1084,28 @@ $existing_stores = $stmt_stores->fetchAll(PDO::FETCH_ASSOC); // Usamos FETCH_ASS
                                         ?>
 
                                         <div class="flex flex-wrap items-center gap-2 mb-2">
+
+
                                             <a href="<?php echo htmlspecialchars($product['product_url']); ?>" target="_blank" class="hover:text-blue-600 transition-colors">
                                                 <h3 class="text-lg md:text-xl font-bold text-gray-900 leading-tight">
                                                     <?php echo htmlspecialchars($product['name']); ?>
                                                 </h3>
+
                                             </a>
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wider <?php echo $store['color']; ?>">
-                                                <i class="fas <?php echo $store['icon']; ?>"></i>
-                                                <?php echo $store['name']; ?>
-                                            </span>
+
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wider <?php echo $store['color']; ?>">
+                                                    <i class="fas <?php echo $store['icon']; ?>"></i>
+                                                    <?php echo $store['name']; ?>
+                                                </span>
+
+                                                <?php if (!empty($product['category_name'])): ?>
+                                                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-bold uppercase <?php echo $product['category_color'] ?? 'bg-gray-50 text-gray-600 border-gray-100'; ?>">
+                                                        <i class="<?php echo $product['category_icon']; ?>"></i>
+                                                        <?php echo htmlspecialchars($product['category_name']); ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
 
                                         <div class="flex flex-wrap gap-2 mb-3">
@@ -1182,12 +1229,24 @@ $existing_stores = $stmt_stores->fetchAll(PDO::FETCH_ASSOC); // Usamos FETCH_ASS
                                     $store = getStoreData($product['product_url']);
                                     ?>
 
-                                    <a href="<?php echo htmlspecialchars($product['product_url']); ?>" target="_blank" class="group">
-                                        <div class="inline-flex items-center gap-1 mb-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider <?= $store['color'] ?>">
+
+                                    <div class="flex flex-wrap gap-1 mb-1">
+                                        <?php if (!empty($product['category_name'])): ?>
+                                            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-bold uppercase <?php echo $product['category_color'] ?? 'bg-gray-50 text-gray-600 border-gray-100'; ?>">
+                                                <i class="<?php echo $product['category_icon']; ?>"></i>
+                                                <?php echo htmlspecialchars($product['category_name']); ?>
+                                            </span>
+                                        <?php endif; ?>
+
+                                        <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider <?= $store['color'] ?>">
                                             <i class="fas <?= $store['icon'] ?>"></i>
                                             <?= $store['name'] ?>
                                         </div>
+                                    </div>
 
+
+
+                                    <a href="<?php echo htmlspecialchars($product['product_url']); ?>" target="_blank" class="group">
                                         <h3 class="text-base font-bold text-gray-800 group-hover:text-indigo-600 leading-tight mb-1 break-words transition-colors">
                                             <?php echo htmlspecialchars($product['name']); ?>
                                         </h3>
