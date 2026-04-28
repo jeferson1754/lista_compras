@@ -181,6 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // --- 1. Obtener y sanitizar parámetros de filtro y ordenamiento ---
 $searchName = isset($_GET['search_name']) ? trim($_GET['search_name']) : '';
 $categoryId = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0; // 0 for 'all categories' or no filter
+$storeFilter = isset($_GET['store']) ? trim($_GET['store']) : ''; // NUEVO: Filtro de tienda
 // --- 3. Construir la cláusula ORDER BY dinámicamente ---
 
 
@@ -194,6 +195,13 @@ $queryParams = []; // For prepared statement parameter binding
 if (!empty($searchName)) {
     $whereClauses[] = "name LIKE :search_name";
     $queryParams[':search_name'] = '%' . $searchName . '%';
+}
+
+// En tu sección de construcción de $whereClauses:
+if (!empty($storeFilter)) {
+    // Buscamos la tienda dentro de la URL
+    $whereClauses[] = "p.product_url LIKE :store";
+    $queryParams[':store'] = '%' . $storeFilter . '%';
 }
 
 /*
@@ -294,6 +302,19 @@ $lastUpdate = $lastUpdateTimestamp > 0 ? date('d/m/Y H:i', $lastUpdateTimestamp)
 $estimatedTotalCost = $totalValue;
 
 $generalMonthlyBudget = $ocio - $total_ocio;
+
+// --- Obtener lista de tiendas dinámicas con conteo ---
+$stmt_stores = $pdo->query("
+    SELECT 
+        SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(product_url, 'https://', ''), 'http://', ''), '/', 1), '.', -2) AS store_name,
+        COUNT(*) as total
+    FROM list_products 
+    WHERE product_url LIKE 'http%' 
+      AND is_purchased = FALSE
+    GROUP BY store_name
+    ORDER BY total DESC
+");
+$existing_stores = $stmt_stores->fetchAll(PDO::FETCH_ASSOC); // Usamos FETCH_ASSOC para tener el nombre y el conteo
 
 
 
@@ -923,7 +944,26 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                             value="<?php echo htmlspecialchars($searchName); ?>">
                     </div>
                 </div>
-                <div class="flex gap-2">
+                <div class="flex flex-wrap gap-2">
+
+                    <select name="store"
+                        class="px-4 py-3 bg-white/80 backdrop-blur-lg border border-white/20 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300 capitalize">
+                        <option value="">Todas las tiendas</option>
+
+                        <?php foreach ($existing_stores as $row):
+                            $store = $row['store_name'];
+                            $count = $row['total'];
+                            if (empty($store)) continue;
+
+                            // Limpiar el nombre para mostrar (ej: amazon.com -> Amazon)
+                            $display_name = ucfirst(explode('.', $store)[0]);
+                        ?>
+                            <option value="<?php echo htmlspecialchars($store); ?>"
+                                <?php echo (isset($_GET['store']) && $_GET['store'] === $store) ? 'selected' : ''; ?>>
+                                <?php echo $display_name . " (" . $count . ")"; ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
 
                     <select id="sort-select" name="sort_by"
                         class="px-4 py-3 bg-white/80 backdrop-blur-lg border border-white/20 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300">
