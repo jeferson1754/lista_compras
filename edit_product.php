@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $currency = $_POST['currency'] ?? 'CLP'; // Asegúrate de que CLP sea el default si es tu moneda principal
     $url = $_POST['url'] ?? '';
     $necessityLevel = $_POST['necessity_level'] ?? 3;
+    $category_id = $_POST['category_id'] ?? 8; //Valor por defecto "Otro"
     // --- LIMPIEZA Y VALIDACIÓN DEL PRECIO EN PHP ---
     // Elimina cualquier caracter no numérico (para seguridad, aunque JS ya lo hace)
     $cleanPrice = preg_replace('/[^0-9]/', '', $priceRaw);
@@ -82,11 +83,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // --- 3. Actualizar la Información Principal del Producto ---
         $sql_update = "UPDATE list_products 
                    SET name = ?, description = ?, price = ?, currency = ?, product_url = ?, 
-                       updated_at = ?, necessity_level = ?, purchase_reason = ? 
+                       updated_at = ?, necessity_level = ?, purchase_reason = ?, category_id = ?
                    WHERE id = ?";
         $stmt_update = $pdo->prepare($sql_update);
         // Ejecuta la actualización. Si falla, saltará al bloque catch.
-        $stmt_update->execute([$name, $description, $newPrice, $currency, $url, $fechaHoraActual, $necessityLevel, $purchaseReason, $productId]);
+        $stmt_update->execute([$name, $description, $newPrice, $currency, $url, $fechaHoraActual, $necessityLevel, $purchaseReason, $category_id, $productId]);
 
         // --- 4. Condicional: Insertar en el Historial SOLO si el precio cambió ---
         if ($newPrice !== $oldPrice) {
@@ -207,7 +208,9 @@ if (!empty($product['rebuy_from_history_id'])) {
 }
 
 
-
+// En tu consulta de categorías para el Select
+$stmt_cats = $pdo->query("SELECT * FROM categories ORDER BY name ASC");
+$categories = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -410,7 +413,23 @@ if (!empty($product['rebuy_from_history_id'])) {
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="category_id" class="text-sm font-semibold text-gray-700 mb-1">Categoría</label>
+                            <select id="category_id" name="category_id" class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300">
+                                <option value="">Seleccionar categoría...</option>
+                                <?php foreach ($categories as $cat): ?>
+                                    <option value="<?php echo $cat['id']; ?>"
+                                        <?php echo (isset($product['category_id']) && $product['category_id'] == $cat['id']) ? 'selected' : ''; ?>>
+                                        <?php
+                                        // Intento de mostrar emoji o nombre
+                                        echo htmlspecialchars($cat['name']);
+                                        ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
                         <div>
                             <label for="necessity_level" class="block text-sm font-semibold text-gray-700 mb-1">Nivel de Necesidad</label>
                             <select id="necessity_level" name="necessity_level"
@@ -425,6 +444,10 @@ if (!empty($product['rebuy_from_history_id'])) {
                                 <?php endif; ?>
                             </select>
                         </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-1 gap-1">
+
                         <div>
                             <label for="url" class="block text-sm font-semibold text-gray-700 mb-1">URL del Producto (Opcional)</label>
                             <input type="url" id="url" name="url" class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-400 focus:border-blue-500 transition" value="<?php echo htmlspecialchars($product['product_url']); ?>" placeholder="https://...">

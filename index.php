@@ -1231,6 +1231,11 @@ $categories = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
 
 
                                     <div class="flex flex-wrap gap-1 mb-1">
+
+                                        <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider <?= $store['color'] ?>">
+                                            <i class="fas <?= $store['icon'] ?>"></i>
+                                            <?= $store['name'] ?>
+                                        </div>
                                         <?php if (!empty($product['category_name'])): ?>
                                             <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-bold uppercase <?php echo $product['category_color'] ?? 'bg-gray-50 text-gray-600 border-gray-100'; ?>">
                                                 <i class="<?php echo $product['category_icon']; ?>"></i>
@@ -1238,10 +1243,7 @@ $categories = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
                                             </span>
                                         <?php endif; ?>
 
-                                        <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider <?= $store['color'] ?>">
-                                            <i class="fas <?= $store['icon'] ?>"></i>
-                                            <?= $store['name'] ?>
-                                        </div>
+
                                     </div>
 
 
