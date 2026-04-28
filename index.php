@@ -671,21 +671,27 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                                     <?php endif; ?>
                                 </div>
 
-                                <!-- Estado del presupuesto -->
-                                <?php if ($generalMonthlyBudget > 0 && $estimatedTotalCost > $generalMonthlyBudget): ?>
+                                <?php
+                                // Determinamos si el presupuesto es válido (mayor a cero)
+                                $hasBudget = $generalMonthlyBudget > 0;
+                                ?>
+
+                                <?php if ($hasBudget && $isOverBudget): ?>
                                     <div class="inline-flex items-center px-3 py-1.5 bg-red-50 text-red-700 text-xs font-semibold rounded-full border border-red-200">
                                         <i class="fas fa-exclamation-triangle mr-1.5"></i>
                                         Excede presupuesto por $<?php echo number_format($estimatedTotalCost - $generalMonthlyBudget, 0, ',', '.'); ?>
                                     </div>
-                                <?php elseif ($generalMonthlyBudget > 0): ?>
+
+                                <?php elseif ($generalMonthlyBudget <= 0): ?>
+                                    <div class="inline-flex items-center px-3 py-1.5 bg-red-100 text-red-800 text-xs font-semibold rounded-full border border-red-300">
+                                        <i class="fas fa-times-circle mr-1.5"></i>
+                                        Presupuesto insuficiente o en negativo: $<?php echo number_format($generalMonthlyBudget, 0, ',', '.'); ?>
+                                    </div>
+
+                                <?php else: ?>
                                     <div class="inline-flex items-center px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">
                                         <i class="fas fa-check-circle mr-1.5"></i>
                                         Dentro del presupuesto
-                                    </div>
-                                <?php else: ?>
-                                    <div class="inline-flex items-center px-3 py-1.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full border border-amber-200">
-                                        <i class="fas fa-info-circle mr-1.5"></i>
-                                        Define un presupuesto general
                                     </div>
                                 <?php endif; ?>
                             </div>
@@ -707,7 +713,7 @@ $generalMonthlyBudget = $ocio - $total_ocio;
                                     <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-1">
                                         Presupuesto Restante de Ocio
                                     </h3>
-                                    <p class="text-xl font-bold <?php echo ($estimatedTotalCost > $generalMonthlyBudget && $generalMonthlyBudget > 0) ? 'text-red-600' : 'text-blue-700'; ?>">
+                                    <p class="text-xl font-bold <?php echo ($estimatedTotalCost > $generalMonthlyBudget && $generalMonthlyBudget < 0) ? 'text-red-600' : 'text-blue-700'; ?>">
                                         $<?php echo number_format($generalMonthlyBudget, 0, ',', '.'); ?>
                                         <span class="text-sm font-medium text-gray-500">CLP</span>
                                     </p>
