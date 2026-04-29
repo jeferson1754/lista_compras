@@ -325,6 +325,7 @@ $existing_stores = $stmt_stores->fetchAll(PDO::FETCH_ASSOC); // Usamos FETCH_ASS
 $stmt_cats = $pdo->query("SELECT * FROM categories ORDER BY name ASC");
 $categories = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
 
+$isOverBudget = $estimatedTotalCost > $generalMonthlyBudget;
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -685,7 +686,7 @@ $categories = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
                                     <?php if ($generalMonthlyBudget > 0): ?>
                                         <?php
                                         $percentage = min(($estimatedTotalCost / $generalMonthlyBudget) * 100, 100);
-                                        $isOverBudget = $estimatedTotalCost > $generalMonthlyBudget;
+
                                         ?>
                                         <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
                                             <div class="h-2 rounded-full transition-all duration-500 
@@ -1721,6 +1722,35 @@ $categories = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
                 });
             }
         });
+
+        async function importarMeli() {
+            const urlInput = document.getElementById('meli_url'); // ID de tu input de link
+            const url = urlInput.value.trim();
+
+            if (!url) return alert("Pega un link primero");
+
+            try {
+                const response = await fetch(`api_meli.php?url=${encodeURIComponent(url)}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    // RELLENAR CAMPOS: Ajusta estos IDs a los de tu formulario real
+                    document.getElementById('name').value = data.title;
+                    document.getElementById('price').value = data.price;
+                    document.getElementById('currency').value = data.currency;
+
+                    // Opcional: mostrar una mini imagen si tienes el elemento
+                    if (document.getElementById('img_preview')) {
+                        document.getElementById('img_preview').src = data.thumbnail;
+                    }
+                } else {
+                    console.error("Error detallado:", data.detail);
+                    alert("Error: " + data.error);
+                }
+            } catch (e) {
+                alert("Error de conexión con el servidor");
+            }
+        }
     </script>
 
     <style>

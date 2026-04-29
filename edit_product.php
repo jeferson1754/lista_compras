@@ -61,8 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['success' => false, 'message' => 'Nivel de necesidad inválido.']);
         exit;
     }
+
+    $pdo = getDBConnection();
     try {
-        $pdo = getDBConnection();
         // --- 1. INICIAR LA TRANSACCIÓN ---
         // A partir de aquí, todas las operaciones son un "todo o nada".
         $pdo->beginTransaction();
