@@ -893,15 +893,27 @@ $categories = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
 
                             <!-- Moneda y URL -->
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
                                 <div class="space-y-2">
-                                    <label class="block text-sm font-semibold text-gray-700">
-                                        <i class="fas fa-coins mr-2 text-yellow-500"></i> Moneda
-                                    </label>
-                                    <select id="currency" name="currency"
-                                        class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-yellow-100 focus:border-yellow-500 transition-all duration-300">
-                                        <option value="CLP">🇨🇱 CLP - Peso Chileno</option>
-                                        <option value="USD">🇺🇸 USD - Dólar</option>
-                                        <option value="EUR">🇪🇺 EUR - Euro</option>
+                                    <div class="flex justify-between items-end">
+                                        <label class="block text-sm font-semibold text-gray-700">
+                                            <i class="fas fa-list mr-2 text-indigo-500"></i> Categoría
+                                        </label>
+                                        <a href="categories.php" class="text-[11px] text-blue-600 hover:underline font-bold uppercase tracking-tight">
+                                            <i class="fas fa-cog mr-1"></i> Configurar
+                                        </a>
+                                    </div>
+                                    <select id="category_id" name="category_id" class="w-full px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-4 focus:ring-yellow-100 focus:border-yellow-500 transition-all duration-300">
+                                        <option value="" selected disabled>Seleccionar categoría...</option>
+                                        <?php foreach ($categories as $cat): ?>
+                                            <option value="<?php echo $cat['id']; ?>"
+                                                <?php echo (isset($product['category_id']) && $product['category_id'] == $cat['id']) ? 'selected' : ''; ?>>
+                                                <?php
+                                                // Intento de mostrar emoji o nombre
+                                                echo htmlspecialchars($cat['name']);
+                                                ?>
+                                            </option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </div>
 

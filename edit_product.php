@@ -415,7 +415,12 @@ $categories = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label for="category_id" class="text-sm font-semibold text-gray-700 mb-1">Categoría</label>
+                            <div class="flex justify-between items-end">
+                                <label for="category_id" class="text-sm font-semibold text-gray-700 mb-1">Categoría</label>
+                                <a href="categories.php" class="text-[11px] text-blue-600 hover:underline font-bold uppercase tracking-tight">
+                                    <i class="fas fa-cog mr-1"></i> Configurar
+                                </a>
+                            </div>
                             <select id="category_id" name="category_id" class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-300">
                                 <option value="">Seleccionar categoría...</option>
                                 <?php foreach ($categories as $cat): ?>
