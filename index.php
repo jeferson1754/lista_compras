@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Convertir a un tipo numérico (integer o float, dependiendo de tu necesidad)
             // Si tu precio es siempre entero (como en CLP), puedes usar intval()
             $price = intval($cleanPrice);
-            $currency = $_POST['currency'] ?? 'USD';
+            $currency = $_POST['currency'] ?? 'CLP';
             $url = $_POST['url'] ?? '';
 
             // --- NUEVO CAMPO: Motivo de la Compra ---
@@ -178,6 +178,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 
+$apiUrl = 'https://mindicador.cl/api';
+//Es necesario tener habilitada la directiva allow_url_fopen para usar file_get_contents
+if (ini_get('allow_url_fopen')) {
+    $json = file_get_contents($apiUrl);
+} else {
+    //De otra forma utilizamos cURL
+    $curl = curl_init($apiUrl);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    $json = curl_exec($curl);
+    curl_close($curl);
+}
+
+$dailyIndicators = json_decode($json);
+
+
 // --- 1. Obtener y sanitizar parámetros de filtro y ordenamiento ---
 $searchName = isset($_GET['search_name']) ? trim($_GET['search_name']) : '';
 $categoryId = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0; // 0 for 'all categories' or no filter
@@ -288,8 +303,10 @@ $lastUpdateTimestamp = 0; // Para almacenar el timestamp más reciente de actual
 $totalValue = 0;
 foreach ($products as $p) {
     $price = floatval($p['price']);
-    if ($p['currency'] === 'USD') $price *= 800;
+    
+    if ($p['currency'] === 'USD') $price *= $dailyIndicators->dolar->valor;
     if ($p['currency'] === 'EUR') $price *= 900;
+
     $totalValue += $price;
     // Actualizar el timestamp de la última modificación
     // Asumiendo que 'updated_at' es una columna TIMESTAMP/DATETIME en tu DB
@@ -1070,7 +1087,7 @@ $isOverBudget = $estimatedTotalCost > $generalMonthlyBudget;
                                 <div class="flex flex-col md:flex-row md:items-start justify-between gap-3 mb-4">
                                     <div class="flex-1">
                                         <?php
-                                        $useCount = (int) ($product['usage_count'] ?? 0); // Ajustado a tu lógica de base de datos
+                                        $useCount = (int) ($product['veces_usado'] ?? 0); // Ajustado a tu lógica de base de datos
                                         $necessityLevel = $product['necessity_level'] ?? 0;
                                         $store = getStoreData($product['product_url'] ?? '');
 
