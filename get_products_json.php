@@ -7,8 +7,23 @@ require_once 'config.php';
 $pdo = getDBConnection(); // Make sure this function returns a valid PDO object.
 
 try {
-    $stmt = $pdo->query("SELECT id, name, product_url, price FROM list_products WHERE product_url IS NOT NULL AND product_url != '' AND is_purchased IS FALSE");
+    $stmt = $pdo->prepare("
+    SELECT id, name, product_url, price 
+    FROM list_products 
+    WHERE product_url IS NOT NULL 
+    AND product_url != '' 
+    AND product_url NOT LIKE :url_link
+    AND is_purchased = FALSE
+    ");
+
+    $url_link = "aliexpress";
+
+    $stmt->execute([
+        ':url_link' => "%$url_link%"
+    ]);
+
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
     echo json_encode($data);
 } catch (Exception $e) {
     // Si hay error, enviamos un JSON con el error, no texto plano
