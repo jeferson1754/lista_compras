@@ -3,10 +3,13 @@
 require_once 'config.php';
 $pdo = getDBConnection();
 
-if (isset($_POST['id']) && isset($_POST['price'])) {
+$id = isset($_REQUEST['id']) ? $_REQUEST['id'] : null;
+$price = isset($_REQUEST['price']) ? $_REQUEST['price'] : null;
 
-    $id = (int)$_POST['id'];
-    $price = (float)$_POST['price'];
+if (isset($id) && isset($price)) {
+
+    $id = (int)$id;
+    $price = (float)$price;
 
     // A partir de aquí, todas las operaciones son un "todo o nada".
     $pdo->beginTransaction();
@@ -41,5 +44,8 @@ if (isset($_POST['id']) && isset($_POST['price'])) {
 
     echo "Sincronizado";
 } else {
+
+    echo $id . "<br>";
+    echo $price;
     echo "Faltan datos";
 }
