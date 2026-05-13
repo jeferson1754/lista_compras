@@ -219,13 +219,12 @@ if (!empty($storeFilter)) {
     $queryParams[':store'] = '%' . $storeFilter . '%';
 }
 
-/*
+
 // Filter by category (assuming 0 means 'all categories' or no filter)
 if ($categoryId > 0) {
     $whereClauses[] = "category_id = :category_id";
     $queryParams[':category_id'] = $categoryId;
 }
-    */
 
 // Join the WHERE clauses
 $where = '';
