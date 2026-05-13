@@ -1155,7 +1155,7 @@ $isOverBudget = $estimatedTotalCost > $generalMonthlyBudget;
                                         <div class="flex flex-wrap items-center gap-2 mb-2">
 
 
-                                            <a href="<?php echo htmlspecialchars($product['product_url']); ?>" target="_blank" class="hover:text-blue-600 transition-colors">
+                                            <a href="<?php echo htmlspecialchars($product['product_url']); ?>" target="_blanck" class="hover:text-blue-600 transition-colors">
                                                 <h3 class="text-lg md:text-xl font-bold text-gray-900 leading-tight">
                                                     <?php echo htmlspecialchars($product['name']); ?>
                                                 </h3>
@@ -1245,7 +1245,7 @@ $isOverBudget = $estimatedTotalCost > $generalMonthlyBudget;
                                             <div class="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-lg mr-3">
                                                 <i class="fas fa-external-link-alt text-blue-500 text-sm"></i>
                                             </div>
-                                            <a href="<?php echo htmlspecialchars($product['product_url']); ?>" target="_blank"
+                                            <a href="<?php echo htmlspecialchars($product['product_url']); ?>" target="_blanck"
                                                 class="text-blue-600 hover:text-blue-800 font-medium text-sm transition-colors hover:underline">
                                                 Ver producto en tienda
                                             </a>
@@ -1321,7 +1321,7 @@ $isOverBudget = $estimatedTotalCost > $generalMonthlyBudget;
 
 
 
-                                    <a href="<?php echo htmlspecialchars($product['product_url']); ?>" target="_blank" class="group">
+                                    <a href="<?php echo htmlspecialchars($product['product_url']); ?>" target="_blanck" class="group">
                                         <h3 class="text-base font-bold text-gray-800 group-hover:text-indigo-600 leading-tight mb-1 break-words transition-colors">
                                             <?php echo htmlspecialchars($product['name']); ?>
                                         </h3>
