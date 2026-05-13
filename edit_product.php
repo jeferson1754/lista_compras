@@ -376,6 +376,25 @@ $categories = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Estética del Scrollbar para que no se vea tosco */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
     </style>
 </head>
 
@@ -497,7 +516,7 @@ $categories = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
 
 
             <div class="lg:col-span-1">
-                <div class="bg-white rounded-2xl shadow-lg ... p-6">
+                <div class="bg-white rounded-2xl p-6">
 
                     <?php if ($original_purchase): ?>
                         <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
@@ -510,91 +529,97 @@ $categories = $stmt_cats->fetchAll(PDO::FETCH_ASSOC);
                             </p>
                         </div>
                     <?php endif; ?>
-
-                    <h3 class="text-xl font-bold text-gray-800 mb-4 ...">
-                        <i class="fas fa-chart-line ..."></i>
-                        Historial de Cambios
-                    </h3>
-                    <div id="price-history-list" class="space-y-2">
-                        <?php if (empty($price_history)): ?>
-                            <p class="text-gray-500">No hay cambios de precio registrados para este ítem.</p>
-                        <?php else: ?>
-                            <?php
-                            // 1. Cálculos iniciales
-                            $all_prices = array_column($price_history, 'price');
-                            $max_price = max($all_prices);
-                            $min_price = min($all_prices);
-                            $current_price = $price_history[0]['price']; // El más reciente
-                            ?>
-
-                            <div class="grid grid-cols-2 gap-2 mb-4">
-                                <div class="p-2 bg-emerald-50 border border-emerald-100 rounded-lg text-center">
-                                    <p class="text-[10px] uppercase text-emerald-600 font-bold">Mínimo Histórico</p>
-                                    <p class="text-sm font-bold text-emerald-700">$<?php echo number_format($min_price, 0, ',', '.'); ?></p>
-                                    <?php if ($current_price <= $min_price): ?>
-                                        <span class="text-[9px] bg-emerald-200 px-1 rounded">¡Precio Actual!</span>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="p-2 bg-red-50 border border-red-100 rounded-lg text-center">
-                                    <p class="text-[10px] uppercase text-red-600 font-bold">Máximo Histórico</p>
-                                    <p class="text-sm font-bold text-red-700">$<?php echo number_format($max_price, 0, ',', '.'); ?></p>
-                                    <?php if ($current_price >= $max_price && $max_price > $min_price): ?>
-                                        <span class="text-[9px] bg-red-200 px-1 rounded">¡Precio Actual!</span>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-
-                            <ul class="space-y-2">
+                    <div class="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 ...">
+                            <i class="fas fa-chart-line ..."></i>
+                            Historial de Cambios
+                        </h3>
+                        <div id="price-history-list" class="space-y-2">
+                            <?php if (empty($price_history)): ?>
+                                <p class="text-gray-500">No hay cambios de precio registrados para este ítem.</p>
+                            <?php else: ?>
                                 <?php
-                                $prev_price = null;
-                                foreach ($price_history as $index => $history_item):
-                                    $price = $history_item['price'];
-                                    $color = "text-gray-600";
-                                    $indicator = "";
-                                    $badge = "";
-
-                                    // Lógica de comparación con el registro cronológico siguiente
-                                    if (isset($price_history[$index + 1])) {
-                                        $old_price = $price_history[$index + 1]['price'];
-                                        if ($price > $old_price) {
-                                            $color = "text-red-600";
-                                            $indicator = "↑ Subió";
-                                        } elseif ($price < $old_price) {
-                                            $color = "text-green-600";
-                                            $indicator = "↓ Bajó";
-                                        } else {
-                                            $indicator = "→ Igual";
-                                        }
-                                    }
-
-                                    // Resaltar si este registro específico fue un hito
-                                    if ($price == $max_price && $max_price != $min_price) $badge = "🚩 Máximo";
-                                    if ($price == $min_price) $badge = "💎 Mínimo";
+                                // 1. Cálculos iniciales
+                                $all_prices = array_column($price_history, 'price');
+                                $max_price = max($all_prices);
+                                $min_price = min($all_prices);
+                                $current_price = $price_history[0]['price']; // El más reciente
                                 ?>
-                                    <li class="p-3 bg-gray-50 border border-gray-200 rounded-xl relative overflow-hidden">
-                                        <div class="flex justify-between items-start">
-                                            <div>
-                                                <p class="text-sm <?php echo $color; ?>">
-                                                    <strong>$<?php echo number_format($price, 0, ',', '.'); ?></strong>
-                                                    <?php if ($indicator): ?>
-                                                        <span class="ml-2 text-xs font-bold"><?php echo $indicator; ?></span>
+
+                                <div class="grid grid-cols-2 gap-2 mb-4">
+                                    <div class="p-2 bg-emerald-50 border border-emerald-100 rounded-lg text-center">
+                                        <p class="text-[10px] uppercase text-emerald-600 font-bold">Mínimo Histórico</p>
+                                        <p class="text-sm font-bold text-emerald-700">$<?php echo number_format($min_price, 0, ',', '.'); ?></p>
+                                        <?php if ($current_price <= $min_price): ?>
+                                            <span class="text-[9px] bg-emerald-200 px-1 rounded">¡Precio Actual!</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="p-2 bg-red-50 border border-red-100 rounded-lg text-center">
+                                        <p class="text-[10px] uppercase text-red-600 font-bold">Máximo Histórico</p>
+                                        <p class="text-sm font-bold text-red-700">$<?php echo number_format($max_price, 0, ',', '.'); ?></p>
+                                        <?php if ($current_price >= $max_price && $max_price > $min_price): ?>
+                                            <span class="text-[8px] bg-red-200 text-red-800 px-1.5 py-0.5 rounded-full font-bold">ACTUAL</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+
+                                <div id="price-history-list"
+                                    class="overflow-y-auto pr-2 custom-scrollbar"
+                                    style="max-height: 350px;">
+                                    <ul class="space-y-2">
+                                        <?php
+                                        foreach ($price_history as $index => $history_item):
+                                            $price = $history_item['price'];
+                                            $color = "text-gray-600";
+                                            $indicator = "";
+                                            $badge = "";
+
+                                            if (isset($price_history[$index + 1])) {
+                                                $old_price = $price_history[$index + 1]['price'];
+                                                if ($price > $old_price) {
+                                                    $color = "text-red-600";
+                                                    $indicator = "↑ Subió";
+                                                } elseif ($price < $old_price) {
+                                                    $color = "text-green-600";
+                                                    $indicator = "↓ Bajó";
+                                                } else {
+                                                    $indicator = "→ Igual";
+                                                }
+                                            }
+
+                                            if ($price == $max_price && $max_price != $min_price) $badge = "🚩 Máximo";
+                                            if ($price == $min_price) $badge = "💎 Mínimo";
+                                        ?>
+                                            <li class="p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-blue-200 transition-colors">
+                                                <div class="flex justify-between items-center">
+                                                    <div>
+                                                        <p class="text-sm <?php echo $color; ?> font-bold">
+                                                            $<?php echo number_format($price, 0, ',', '.'); ?>
+                                                            <?php if ($indicator): ?>
+                                                                <span class="ml-2 text-[9px] font-black px-1.5 py-0.5 bg-gray-100 rounded uppercase">
+                                                                    <?php echo $indicator; ?>
+                                                                </span>
+                                                            <?php endif; ?>
+                                                        </p>
+                                                        <p class="text-[10px] text-gray-400 mt-0.5">
+                                                            <i class="far fa-calendar-alt mr-1"></i>
+                                                            <?php echo date('d/m/Y', strtotime($history_item['purchased_at'])); ?>
+                                                        </p>
+                                                    </div>
+                                                    <?php if ($badge): ?>
+                                                        <span class="text-[8px] font-black uppercase px-2 py-1 rounded-md <?php echo ($price == $min_price) ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'; ?>">
+                                                            <?php echo $badge; ?>
+                                                        </span>
                                                     <?php endif; ?>
-                                                </p>
-                                                <p class="text-[10px] text-gray-500 mt-1">
-                                                    <?php echo date('d/m/Y', strtotime($history_item['purchased_at'])); ?>
-                                                </p>
-                                            </div>
-                                            <?php if ($badge): ?>
-                                                <span class="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full <?php echo ($price == $min_price) ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'; ?>">
-                                                    <?php echo $badge; ?>
-                                                </span>
-                                            <?php endif; ?>
-                                        </div>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        <?php endif; ?>
+                                                </div>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
+
                     <div class="mt-6 bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
                         <h3 class="text-xl font-bold text-gray-800 mb-4">
                             <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
