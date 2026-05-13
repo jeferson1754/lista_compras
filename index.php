@@ -303,7 +303,7 @@ $lastUpdateTimestamp = 0; // Para almacenar el timestamp más reciente de actual
 $totalValue = 0;
 foreach ($products as $p) {
     $price = floatval($p['price']);
-    
+
     if ($p['currency'] === 'USD') $price *= $dailyIndicators->dolar->valor;
     if ($p['currency'] === 'EUR') $price *= 900;
 
@@ -540,6 +540,10 @@ $isOverBudget = $estimatedTotalCost > $generalMonthlyBudget;
         .product-full,
         .product-compact {
             transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        a {
+            text-decoration: none !important;
         }
     </style>
 </head>
@@ -1049,6 +1053,31 @@ $isOverBudget = $estimatedTotalCost > $generalMonthlyBudget;
 
 
 
+        <div id="dynamic-header" class="fixed top-0 left-0 w-full z-50 bg-indigo-900 text-white shadow-2xl transform -translate-y-full transition-transform duration-300 hidden">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+
+                <div class="flex items-center gap-4">
+                    <button id="clear-selection" class="text-white/70 hover:text-white transition-colors">
+                        <i class="fas fa-times-circle text-xl"></i>
+                    </button>
+                    <span class="font-bold text-lg"><span id="selected-count">0</span> Seleccionados</span>
+                </div>
+
+                <div id="store-totals" class="flex flex-wrap gap-2 text-xs font-bold uppercase tracking-wider">
+                </div>
+
+                <div class="flex items-center gap-6">
+                    <div class="flex items-center bg-white/10 rounded-lg px-3 py-1 border border-white/20">
+                        <label class="text-[10px] mr-2">ENVÍO $</label>
+                        <input type="number" id="shipping-input" value="0" class="bg-transparent border-none text-white font-bold w-20 p-0 focus:ring-0 text-sm" placeholder="0">
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] text-white/70 leading-none">TOTAL COMPRA</p>
+                        <p class="text-2xl font-black text-emerald-400" id="grand-total">$0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <?php if (empty($products)): ?>
             <?php if (!empty($searchName) || $categoryId > 0): ?>
@@ -1080,7 +1109,18 @@ $isOverBudget = $estimatedTotalCost > $generalMonthlyBudget;
         <?php else: ?>
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                 <?php foreach ($products as $product): ?>
-                    <div class="product-card product-full bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 overflow-hidden card-hover animate-fade-in" data-product-id="<?php echo $product['id']; ?>">
+                    <div class="product-card product-full bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 overflow-hidden card-hover animate-fade-in"
+                        data-product-id="<?php echo $product['id']; ?>"
+                        data-store-name="<?php
+                                            $store = getStoreData($product['product_url'] ?? '');
+                                            echo htmlspecialchars($store['name']); ?>"
+                        data-price="<?php echo $product['price']; ?>">
+
+                        <div class="absolute top-4 right-4 z-10">
+                            <input type="checkbox" class="product-select w-6 h-6 rounded-full border-2 border-blue-500 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer shadow-sm"
+                                data-id="<?php echo $product['id']; ?>">
+                        </div>
+
                         <div class="transition-all duration-300 overflow-hidden group">
                             <!-- Header con gradiente sutil -->
                             <div class="bg-gradient-to-br from-gray-50 to-white p-6 border-b border-gray-100">
@@ -1089,7 +1129,6 @@ $isOverBudget = $estimatedTotalCost > $generalMonthlyBudget;
                                         <?php
                                         $useCount = (int) ($product['veces_usado'] ?? 0); // Ajustado a tu lógica de base de datos
                                         $necessityLevel = $product['necessity_level'] ?? 0;
-                                        $store = getStoreData($product['product_url'] ?? '');
 
                                         // Configuración dinámica de uso
                                         $useConfig = ['bg' => 'bg-gray-100', 'text' => 'text-gray-600', 'label' => 'Sin uso'];
@@ -1250,14 +1289,18 @@ $isOverBudget = $estimatedTotalCost > $generalMonthlyBudget;
                         </div>
                     </div>
 
-                    <div class="product-card product-compact bg-white rounded-xl shadow-sm border border-gray-100 mb-3 active:scale-[0.98] transition-all" data-product-id="<?php echo $product['id']; ?>">
+                    <div class="product-card product-compact bg-white rounded-xl shadow-sm border border-gray-100 mb-3 active:scale-[0.98] transition-all relative overflow-hidden"
+                        data-product-id="<?php echo $product['id']; ?>"
+                        data-store-name="<?php echo htmlspecialchars($store['name']); ?>"
+                        data-price="<?php echo $product['price']; ?>">
+
+                        <div class="absolute top-3 left-3 z-20">
+                            <input type="checkbox" class="product-select w-5 h-5 rounded-full border-2 border-blue-400 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer shadow-sm bg-white"
+                                data-id="<?php echo $product['id']; ?>">
+                        </div>
                         <div class="p-4">
                             <div class="flex justify-between items-start gap-2 mb-3">
                                 <div class="flex-1 min-w-0">
-                                    <?php
-                                    // Llamamos a la función antes de mostrar el enlace
-                                    $store = getStoreData($product['product_url']);
-                                    ?>
 
 
                                     <div class="flex flex-wrap gap-1 mb-1">
@@ -1453,6 +1496,65 @@ $isOverBudget = $estimatedTotalCost > $generalMonthlyBudget;
 
 
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkboxes = document.querySelectorAll('.product-select');
+            const header = document.getElementById('dynamic-header');
+            const shippingInput = document.getElementById('shipping-input');
+
+            function updateCalculations() {
+                let totalProducts = 0;
+                let selectedCount = 0;
+                let storeData = {};
+
+                checkboxes.forEach(cb => {
+                    if (cb.checked) {
+                        const card = cb.closest('.product-card');
+                        const price = parseFloat(card.dataset.price);
+                        const store = card.dataset.storeName;
+
+                        selectedCount++;
+                        totalProducts += price;
+                        storeData[store] = (storeData[store] || 0) + price;
+                    }
+                });
+
+                // Mostrar/Ocultar Header
+                if (selectedCount > 0) {
+                    header.classList.remove('hidden');
+                    setTimeout(() => header.classList.remove('-translate-y-full'), 10);
+                } else {
+                    header.classList.add('-translate-y-full');
+                    setTimeout(() => header.classList.add('hidden'), 300);
+                }
+
+                // Actualizar UI
+                document.getElementById('selected-count').innerText = selectedCount;
+
+                // Píldoras por tienda
+                const storeTotalsDiv = document.getElementById('store-totals');
+                storeTotalsDiv.innerHTML = '';
+                for (const [store, amount] of Object.entries(storeData)) {
+                    const colorClass = store.toLowerCase().includes('mercado') ? 'bg-orange-500' :
+                        store.toLowerCase().includes('ali') ? 'bg-red-500' : 'bg-blue-500';
+                    storeTotalsDiv.innerHTML += `
+                <span class="px-3 py-1 rounded-full ${colorClass} shadow-sm border border-white/20">
+                    ${store}: $${amount.toLocaleString('es-CL')}
+                </span>`;
+                }
+
+                // Total Final
+                const shipping = parseFloat(shippingInput.value) || 0;
+                document.getElementById('grand-total').innerText = `$${(totalProducts + shipping).toLocaleString('es-CL')}`;
+            }
+
+            checkboxes.forEach(cb => cb.addEventListener('change', updateCalculations));
+            shippingInput.addEventListener('input', updateCalculations);
+            document.getElementById('clear-selection').addEventListener('click', () => {
+                checkboxes.forEach(cb => cb.checked = false);
+                updateCalculations();
+            });
+        });
+
         // Seleccionamos los elementos del DOM que necesitamos manipular
         const reasonSelect = document.getElementById('purchase_reason_add');
         const customReasonWrapper = document.getElementById('custom-reason-wrapper');
